@@ -36,6 +36,12 @@
 				"RevisionStore",
 				"PermissionManager"
 			]
+		},
+		"CollabUserDashboard": {
+			"class": "MediaWiki\\Extension\\CollabPatrol\\Special\\SpecialCollabUserDashboard",
+			"services": [
+				"PermissionManager"
+			]
 		}
 	},
 	"APIModules": {
@@ -58,7 +64,8 @@
 		"GetPreferences": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PreferencesHooks::onGetPreferences",
 		"BeforePageDisplay": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PageHooks::onBeforePageDisplay",
 		"DifferenceEngineViewHeader": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PageHooks::onDifferenceEngineViewHeader",
-		"SkinTemplateNavigation::Universal": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\SkinHooks::onSkinTemplateNavigationUniversal"
+		"SkinTemplateNavigation::Universal": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\SkinHooks::onSkinTemplateNavigationUniversal",
+		"EchoGetDefaultNotifiedUsers": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\EchoHooks::onEchoGetDefaultNotifiedUsers"
 	},
 	"DefaultUserOptions": {
 		"collabpatrol-refresh-interval": 30,
@@ -113,6 +120,8 @@
 				"collabpatrol-notify-error",
 				"collabpatrol-confirm-remove",
 				"collabpatrol-confirm-ban",
+				"collabpatrol-user-dashboard-open",
+				"collabpatrol-user-dashboard-promo",
 				"collabpatrol-time-now",
 				"collabpatrol-time-minutes",
 				"collabpatrol-time-hours",
@@ -138,22 +147,27 @@
 				"collabpatrol-chat-placeholder",
 				"collabpatrol-chat-btn-send",
 				"collabpatrol-chat-btn-delete",
+				"collabpatrol-chat-btn-delete-label",
 				"collabpatrol-chat-deleted",
 				"collabpatrol-chat-empty",
+				"collabpatrol-chat-mention-hint",
 				"collabpatrol-chat-too-long",
 				"collabpatrol-chat-banned-word",
 				"collabpatrol-chat-send-error",
 				"collabpatrol-chat-user-banned",
 				"collabpatrol-chat-confirm-delete",
 				"collabpatrol-chat-btn-ban",
+				"collabpatrol-chat-btn-ban-label",
 				"collabpatrol-chat-btn-unban",
+				"collabpatrol-chat-btn-unban-label",
 				"collabpatrol-chat-confirm-ban",
 				"collabpatrol-chat-confirm-unban",
 				"collabpatrol-chat-ban-success",
 				"collabpatrol-chat-unban-success",
 				"collabpatrol-chat-toggle-open",
 				"collabpatrol-chat-toggle-close",
-				"collabpatrol-chat-count"
+				"collabpatrol-chat-count",
+				"collabpatrol-user-dashboard-open"
 			],
 			"dependencies": [
 				"ext.collabPatrol",
@@ -186,14 +200,18 @@
 				"collabpatrol-chat-placeholder",
 				"collabpatrol-chat-btn-send",
 				"collabpatrol-chat-btn-delete",
+				"collabpatrol-chat-btn-delete-label",
 				"collabpatrol-chat-deleted",
 				"collabpatrol-chat-empty",
+				"collabpatrol-chat-mention-hint",
 				"collabpatrol-chat-too-long",
 				"collabpatrol-chat-send-error",
 				"collabpatrol-chat-user-banned",
 				"collabpatrol-chat-confirm-delete",
 				"collabpatrol-chat-btn-ban",
+				"collabpatrol-chat-btn-ban-label",
 				"collabpatrol-chat-btn-unban",
+				"collabpatrol-chat-btn-unban-label",
 				"collabpatrol-chat-confirm-ban",
 				"collabpatrol-chat-confirm-unban",
 				"collabpatrol-chat-ban-success",
@@ -236,12 +254,53 @@
 				"collabpatrol-stats-pending",
 				"collabpatrol-stats-progress",
 				"collabpatrol-stats-finished",
-				"collabpatrol-stats-top-patrollers"
+				"collabpatrol-stats-top-patrollers",
+				"collabpatrol-user-dashboard-title",
+				"collabpatrol-user-dashboard-open",
+				"collabpatrol-userdash-section-mentions",
+				"collabpatrol-userdash-section-inprogress",
+				"collabpatrol-userdash-section-suggested",
+				"collabpatrol-userdash-empty-mentions",
+				"collabpatrol-userdash-empty-inprogress",
+				"collabpatrol-userdash-empty-suggested",
+				"collabpatrol-userdash-col-revision",
+				"collabpatrol-userdash-col-status",
+				"collabpatrol-userdash-col-from",
+				"collabpatrol-userdash-col-message",
+				"collabpatrol-userdash-col-age",
+				"collabpatrol-userdash-col-actions",
+				"collabpatrol-userdash-open-diff",
+				"collabpatrol-userdash-take",
+				"collabpatrol-userdash-finish",
+				"collabpatrol-userdash-helptext"
 			],
 			"dependencies": [
 				"ext.collabPatrol",
 				"oojs-ui-widgets"
 			]
+		}
+	},
+	"attributes": {
+		"Echo": {
+			"NotificationCategories": {
+				"collabpatrol-chat-mention": {
+					"priority": 3,
+					"title": "echo-category-title-collabpatrol-chat-mention",
+					"tooltip": "echo-pref-tooltip-collabpatrol-chat-mention"
+				}
+			},
+			"Notifications": {
+				"collabpatrol-chat-mention": {
+					"category": "collabpatrol-chat-mention",
+					"group": "interactive",
+					"section": "alert",
+					"presentation-model": "MediaWiki\\Extension\\CollabPatrol\\Echo\\CollabPatrolChatMentionPresentationModel",
+					"bundle": {
+						"web": true,
+						"expandable": true
+					}
+				}
+			}
 		}
 	},
 	"ResourceFileModulePaths": {

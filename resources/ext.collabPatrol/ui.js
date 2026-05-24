@@ -145,6 +145,13 @@
 			}
 		} else {
 			wrapper.append( buildBadge( entry ) );
+			if ( entry.status !== 'finished' ) {
+				var promo = $( '<a>' )
+					.addClass( 'collabpatrol-userdash-promo-link' )
+					.attr( 'href', mw.util.getUrl( 'Special:CollabUserDashboard' ) )
+					.text( mw.msg( 'collabpatrol-user-dashboard-promo' ) + ' ' + mw.msg( 'collabpatrol-user-dashboard-open' ) );
+				wrapper.append( promo );
+			}
 
 			if ( entry.status === 'pending' ) {
 				wrapper.append( createBtn( mw.msg( 'collabpatrol-btn-take' ), 'green', function () {

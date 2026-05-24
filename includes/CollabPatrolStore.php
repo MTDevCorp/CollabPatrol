@@ -246,6 +246,138 @@ class CollabPatrolStore {
 		return $db->insertId();
 	}
 
+	public function addChatMentions( int $msgId, int $revId, UserIdentity $fromUser, array $targets ): void {
+		if ( !$targets ) {
+			return;
+		}
+		$db = $this->lb->getConnection( DB_PRIMARY );
+		$rows = [];
+		$seen = [];
+		foreach ( $targets as $target ) {
+			$normalized = str_replace( '_', ' ', trim( $target->getName() ) );
+			$key = strtolower( $normalized );
+			if ( $normalized === '' || isset( $seen[$key] ) ) {
+				continue;
+			}
+			$seen[$key] = true;
+			$rows[] = [
+				'cpcm_msg_id' => $msgId,
+				'cpcm_rev_id' => $revId,
+				'cpcm_target_user_id' => $target->getId(),
+				'cpcm_target_user_text' => $normalized,
+				'cpcm_from_user_id' => $fromUser->getId(),
+				'cpcm_from_user_text' => $fromUser->getName(),
+				'cpcm_timestamp' => ConvertibleTimestamp::now( TS_MW ),
+			];
+		}
+		if ( !$rows ) {
+			return;
+		}
+		foreach ( $rows as $row ) {
+			$db->upsert(
+				'collab_patrol_chat_mention',
+				$row,
+				[ [ 'cpcm_msg_id', 'cpcm_target_user_text' ] ],
+				[],
+				__METHOD__
+			);
+		}
+	}
+
+	public function getActiveMentionsForUser( string $userText, int $limit = 50 ): array {
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			[ 'm' => 'collab_patrol_chat_mention', 'cp' => 'collab_patrol', 'c' => 'collab_patrol_chat' ],
+			[
+				'm.cpcm_id',
+				'm.cpcm_msg_id',
+				'm.cpcm_rev_id',
+				'm.cpcm_from_user_text',
+				'm.cpcm_timestamp',
+				'cp.cp_status',
+				'cp.cp_comment',
+				'cp.cp_user_text',
+				'cp.cp_timestamp',
+				'c.cpc_message',
+				'c.cpc_deleted',
+			],
+			[
+				'm.cpcm_target_user_text' => $userText,
+				'cp.cp_status' => [ 'pending', 'in_progress' ],
+				'c.cpc_deleted' => 0,
+			],
+			__METHOD__,
+			[
+				'ORDER BY' => 'm.cpcm_timestamp DESC',
+				'LIMIT' => $limit,
+			],
+			[
+				'cp' => [ 'JOIN', 'cp.cp_rev_id = m.cpcm_rev_id' ],
+				'c' => [ 'JOIN', 'c.cpc_id = m.cpcm_msg_id' ],
+			]
+		);
+		$mentions = [];
+		foreach ( $res as $row ) {
+			$mentions[] = [
+				'mentionId' => (int)$row->cpcm_id,
+				'msgId' => (int)$row->cpcm_msg_id,
+				'revId' => (int)$row->cpcm_rev_id,
+				'fromUserText' => $row->cpcm_from_user_text,
+				'mentionTimestamp' => wfTimestamp( TS_UNIX, $row->cpcm_timestamp ),
+				'status' => $row->cp_status,
+				'entryComment' => $row->cp_comment,
+				'entryUserText' => $row->cp_user_text,
+				'entryTimestamp' => wfTimestamp( TS_UNIX, $row->cp_timestamp ),
+				'message' => $row->cpc_message,
+			];
+		}
+		return $mentions;
+	}
+
+	public function getUserInProgressEntries( string $userText, int $limit = 50 ): array {
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			'collab_patrol',
+			'*',
+			[
+				'cp_user_text' => $userText,
+				'cp_status' => 'in_progress',
+			],
+			__METHOD__,
+			[
+				'ORDER BY' => 'cp_timestamp DESC',
+				'LIMIT' => $limit,
+			]
+		);
+		$entries = [];
+		foreach ( $res as $row ) {
+			$entries[] = $this->rowToArray( $row );
+		}
+		return $entries;
+	}
+
+	public function getSuggestedPendingEntries( string $excludeUserText, int $limit = 25 ): array {
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			'collab_patrol',
+			'*',
+			[
+				'cp_status' => 'pending',
+				'cp_user_text != ' . $db->addQuotes( $excludeUserText ),
+			],
+			__METHOD__,
+			[
+				'ORDER BY' => 'cp_timestamp ASC',
+				'LIMIT' => $limit,
+			]
+		);
+		$entries = [];
+		foreach ( $res as $row ) {
+			$entries[] = $this->rowToArray( $row );
+		}
+		return $entries;
+	}
+
 	public function deleteChatMessage( int $msgId, string $deletedBy ): bool {
 		$db = $this->lb->getConnection( DB_PRIMARY );
 		$db->update(
@@ -266,6 +398,11 @@ class CollabPatrolStore {
 		$db->delete(
 			'collab_patrol_chat',
 			[ 'cpc_rev_id' => $revId ],
+			__METHOD__
+		);
+		$db->delete(
+			'collab_patrol_chat_mention',
+			[ 'cpcm_rev_id' => $revId ],
 			__METHOD__
 		);
 	}

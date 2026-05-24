@@ -72,6 +72,9 @@ class ApiCollabPatrol extends ApiBase {
 			case 'chat_unban':
 				$this->executeChatUnban( $params, $user );
 				break;
+			case 'user_dashboard':
+				$this->executeUserDashboard( $user );
+				break;
 			default:
 				$this->dieWithError( 'apierror-invalidparameter', 'subaction' );
 		}
@@ -230,12 +233,29 @@ class ApiCollabPatrol extends ApiBase {
 		}
 
 		$msgId = $this->store->addChatMessage( $revId, $user, $message );
+		$mentions = $this->extractMentionTargets( $message, $user->getName() );
+		if ( $mentions ) {
+			$this->store->addChatMentions( $msgId, $revId, $user, $mentions );
+			$this->sendChatMentionEcho( $revId, $msgId, $message, $user, $mentions );
+		}
 		$this->getResult()->addValue( null, 'collabpatrol', [
 			'result' => 'success',
 			'msgId' => $msgId,
 			'userText' => $user->getName(),
 			'timestamp' => time(),
 			'message' => $message,
+		] );
+	}
+
+	private function executeUserDashboard( $user ): void {
+		$userText = $user->getName();
+		$mentions = $this->store->getActiveMentionsForUser( $userText, 50 );
+		$inProgress = $this->store->getUserInProgressEntries( $userText, 50 );
+		$suggested = $this->store->getSuggestedPendingEntries( $userText, 25 );
+		$this->getResult()->addValue( null, 'collabpatrol', [
+			'mentions' => $mentions,
+			'inProgress' => $inProgress,
+			'suggestedPending' => $suggested,
 		] );
 	}
 
@@ -314,6 +334,75 @@ class ApiCollabPatrol extends ApiBase {
 		return false;
 	}
 
+	private function extractMentionTargets( string $message, string $senderName ): array {
+		if ( $message === '' ) {
+			return [];
+		}
+		preg_match_all( '/(?:^|[\\s\\(\\[\\{<])@([^\\s@:,;!?.\\)\\]\\}<>]{1,85})/u', $message, $matches );
+		if ( empty( $matches[1] ) ) {
+			return [];
+		}
+		$targets = [];
+		foreach ( $matches[1] as $raw ) {
+			$candidate = str_replace( '_', ' ', trim( $raw ) );
+			if ( $candidate === '' ) {
+				continue;
+			}
+			if ( strcasecmp( $candidate, $senderName ) === 0 ) {
+				continue;
+			}
+			$user = $this->userFactory->newFromName( $candidate );
+			if ( !$user || !$user->isRegistered() ) {
+				continue;
+			}
+			$targets[] = $user;
+		}
+		return $targets;
+	}
+
+	private function sendChatMentionEcho(
+		int $revId,
+		int $msgId,
+		string $message,
+		$user,
+		array $targets
+	): void {
+		if ( !$this->getConfig()->get( 'CollabPatrolEnableEcho' ) ) {
+			return;
+		}
+		if ( !class_exists( '\\EchoEvent' ) ) {
+			return;
+		}
+		$rev = $this->revisionStore->getRevisionById( $revId );
+		if ( !$rev ) {
+			return;
+		}
+		$title = \Title::newFromLinkTarget( $rev->getPageAsLinkTarget() );
+		if ( !$title ) {
+			return;
+		}
+		$recipientIds = [];
+		foreach ( $targets as $target ) {
+			$recipientIds[] = $target->getId();
+		}
+		$recipientIds = array_values( array_unique( array_filter( $recipientIds ) ) );
+		if ( !$recipientIds ) {
+			return;
+		}
+		$excerpt = mb_substr( $message, 0, 220 );
+		\EchoEvent::create( [
+			'type' => 'collabpatrol-chat-mention',
+			'title' => $title,
+			'agent' => $user,
+			'extra' => [
+				'collabpatrol-recipients' => $recipientIds,
+				'collabpatrol-revid' => $revId,
+				'collabpatrol-msgid' => $msgId,
+				'collabpatrol-message' => $excerpt,
+			],
+		] );
+	}
+
 	private function patrolRevision( int $revId ): void {
 		$api = new \ApiMain(
 			new \FauxRequest( [
@@ -337,6 +426,7 @@ class ApiCollabPatrol extends ApiBase {
 				ParamValidator::PARAM_TYPE => [
 					'get', 'set', 'remove', 'history', 'list', 'stats', 'batchget',
 					'chat_get', 'chat_post', 'chat_delete', 'chat_ban', 'chat_unban',
+					'user_dashboard',
 				],
 			],
 			'revid' => [ ParamValidator::PARAM_TYPE => 'integer' ],

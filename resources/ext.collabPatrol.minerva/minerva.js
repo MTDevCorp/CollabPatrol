@@ -74,7 +74,7 @@
 
 		var $input = $( '<textarea>' )
 			.addClass( 'collabpatrol-m-chat-input' )
-			.attr( 'placeholder', mw.msg( 'collabpatrol-chat-placeholder' ) )
+			.attr( 'placeholder', mw.msg( 'collabpatrol-chat-placeholder' ) + ' ' + mw.msg( 'collabpatrol-chat-mention-hint' ) )
 			.attr( 'maxlength', MAX_LEN )
 			.attr( 'rows', 2 );
 
@@ -215,9 +215,9 @@
 
 		if ( isMod || msg.userText === CP.userName ) {
 			var $del = $( '<button>' )
-				.addClass( 'collabpatrol-m-chat-btn-delete' )
+				.addClass( 'collabpatrol-m-chat-btn-delete collabpatrol-m-chat-btn-action' )
 				.attr( 'title', mw.msg( 'collabpatrol-chat-btn-delete' ) )
-				.text( '✕' )
+				.text( mw.msg( 'collabpatrol-chat-btn-delete-label' ) )
 				.on( 'click', function () {
 					if ( !window.confirm( mw.msg( 'collabpatrol-chat-confirm-delete' ) ) ) {
 						return;
@@ -231,9 +231,9 @@
 		if ( isMod && msg.userText !== CP.userName ) {
 			var isUserBanned = !!bannedUsers[ msg.userText ];
 			var $ban = $( '<button>' )
-				.addClass( 'collabpatrol-m-chat-btn-delete collabpatrol-m-chat-btn-ban' )
+				.addClass( 'collabpatrol-m-chat-btn-delete collabpatrol-m-chat-btn-ban collabpatrol-m-chat-btn-action' )
 				.attr( 'title', isUserBanned ? mw.msg( 'collabpatrol-chat-btn-unban' ) : mw.msg( 'collabpatrol-chat-btn-ban' ) )
-				.text( isUserBanned ? '↺' : '!' )
+				.text( isUserBanned ? mw.msg( 'collabpatrol-chat-btn-unban-label' ) : mw.msg( 'collabpatrol-chat-btn-ban-label' ) )
 				.on( 'click', function () {
 					var confirmed;
 					if ( isUserBanned ) {
@@ -345,6 +345,14 @@
 
 				row.append( $( '<span>' ).addClass( badgeCls ).text( badgeText ) );
 				row.append( $( '<span>' ).addClass( 'collabpatrol-m-time' ).text( CP.formatTimeElapsed( elapsed ) ) );
+				if ( entry.status !== 'finished' ) {
+					row.append(
+						$( '<a>' )
+							.addClass( 'collabpatrol-m-userdash-link' )
+							.attr( 'href', mw.util.getUrl( 'Special:CollabUserDashboard' ) )
+							.text( mw.msg( 'collabpatrol-user-dashboard-open' ) )
+					);
+				}
 
 				if ( entry.status === 'pending' ) {
 					row.append( createBtn( mw.msg( 'collabpatrol-btn-take' ), 'green', function () {

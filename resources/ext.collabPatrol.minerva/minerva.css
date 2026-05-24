@@ -207,35 +207,48 @@
 	color: #222;
 	word-break: break-word;
 	line-height: 1.45;
+	padding-right: 130px;
 }
 
 .collabpatrol-m-chat-btn-delete {
 	position: absolute;
 	top: 4px;
 	right: 6px;
-	border: none;
-	background: transparent;
-	color: #bbb;
+	border: 1px solid #d5dce3;
+	background: #fff;
+	color: #445;
 	cursor: pointer;
 	font-size: 11px;
-	padding: 2px 4px;
-	border-radius: 3px;
+	padding: 2px 6px;
+	border-radius: 4px;
 	line-height: 1;
 }
 
 .collabpatrol-m-chat-btn-delete:hover {
 	background: #f8d7da;
+	border-color: #f5c6cb;
 	color: #721c24;
 }
 
 .collabpatrol-m-chat-btn-ban {
-	right: 24px;
-	color: #a97800;
+	right: 72px;
+	color: #7a5d00;
 }
 
 .collabpatrol-m-chat-btn-ban:hover {
 	background: #fff3cd;
+	border-color: #ffeeba;
 	color: #7a5d00;
+}
+
+.collabpatrol-m-chat-btn-action {
+	font-weight: 600;
+}
+
+.collabpatrol-m-userdash-link {
+	color: #36c;
+	font-size: 11px;
+	text-decoration: underline;
 }
 
 .collabpatrol-m-chat-empty {
@@ -312,5 +325,10 @@
 
 	.collabpatrol-m-chat-messages {
 		max-height: 180px;
+	}
+
+	.collabpatrol-m-chat-text {
+		padding-right: 0;
+		padding-top: 30px;
 	}
 }

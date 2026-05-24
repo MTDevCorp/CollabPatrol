@@ -112,7 +112,7 @@
 		var $composer = $( '<div>' ).addClass( 'cp-chat-composer' );
 		var $input = $( '<textarea>' )
 			.addClass( 'cp-chat-input' )
-			.attr( 'placeholder', mw.msg( 'collabpatrol-chat-placeholder' ) )
+			.attr( 'placeholder', mw.msg( 'collabpatrol-chat-placeholder' ) + ' ' + mw.msg( 'collabpatrol-chat-mention-hint' ) )
 			.attr( 'maxlength', MAX_LEN )
 			.attr( 'rows', 2 );
 		var $counter = $( '<span>' ).addClass( 'cp-chat-char-counter' ).text( '0/' + MAX_LEN );
@@ -266,9 +266,9 @@
 
 		if ( isMod || msg.userText === CP.userName ) {
 			var $del = $( '<button>' )
-				.addClass( 'cp-chat-btn-delete' )
+				.addClass( 'cp-chat-btn-delete cp-chat-btn-action' )
 				.attr( 'title', mw.msg( 'collabpatrol-chat-btn-delete' ) )
-				.text( '✕' )
+				.text( mw.msg( 'collabpatrol-chat-btn-delete-label' ) )
 				.on( 'click', function () {
 					if ( !window.confirm( mw.msg( 'collabpatrol-chat-confirm-delete' ) ) ) {
 						return;
@@ -282,9 +282,9 @@
 		if ( isMod && msg.userText !== CP.userName ) {
 			var isUserBanned = !!bannedUsers[ msg.userText ];
 			var $ban = $( '<button>' )
-				.addClass( 'cp-chat-btn-delete cp-chat-btn-ban' )
+				.addClass( 'cp-chat-btn-delete cp-chat-btn-ban cp-chat-btn-action' )
 				.attr( 'title', isUserBanned ? mw.msg( 'collabpatrol-chat-btn-unban' ) : mw.msg( 'collabpatrol-chat-btn-ban' ) )
-				.text( isUserBanned ? '↺' : '!' )
+				.text( isUserBanned ? mw.msg( 'collabpatrol-chat-btn-unban-label' ) : mw.msg( 'collabpatrol-chat-btn-ban-label' ) )
 				.on( 'click', function () {
 					var confirmed;
 					if ( isUserBanned ) {

@@ -67,6 +67,15 @@
 			} );
 		},
 
+		getUserDashboard: function () {
+			return api.get( {
+				action: 'collabpatrol',
+				subaction: 'user_dashboard'
+			} ).then( function ( data ) {
+				return data.collabpatrol || { mentions: [], inProgress: [], suggestedPending: [] };
+			} );
+		},
+
 		batchGet: function ( revIds ) {
 			if ( !revIds || !revIds.length ) {
 				return $.Deferred().resolve( {} ).promise();

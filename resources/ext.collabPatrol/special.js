@@ -3,17 +3,26 @@
 
 	var CP = window.CollabPatrol;
 	var canonicalPage = mw.config.get( 'wgCanonicalSpecialPageName' );
+	var isMainDashboard = canonicalPage === 'CollabPatrol';
+	var isUserDashboard = canonicalPage === 'CollabUserDashboard';
 
-	if ( canonicalPage !== 'CollabPatrol' ) {
+	if ( !isMainDashboard && !isUserDashboard ) {
 		return;
 	}
 
 	var $dashboard = $( '#collabpatrol-dashboard' );
-	if ( !$dashboard.length ) {
+	var $userDashboard = $( '#collabpatrol-user-dashboard' );
+	var userDashboardUrl = mw.util.getUrl( 'Special:CollabUserDashboard' );
+
+	if ( isMainDashboard && !$dashboard.length ) {
+		return;
+	}
+	if ( isUserDashboard && !$userDashboard.length ) {
 		return;
 	}
 
-	var isAdmin = $dashboard.data( 'is-admin' ) === 1 || $dashboard.data( 'is-admin' ) === '1';
+	var isAdmin = ( $dashboard.data( 'is-admin' ) === 1 || $dashboard.data( 'is-admin' ) === '1' ) ||
+		( $userDashboard.data( 'is-admin' ) === 1 || $userDashboard.data( 'is-admin' ) === '1' );
 	var currentFilter = 'all';
 
 	function createBtn( label, cls, onClick ) {
@@ -36,7 +45,15 @@
 		return $( '<span>' ).addClass( cls ).text( label );
 	}
 
-	function renderDashboard( entries ) {
+	function getDiffUrl( revId ) {
+		return mw.util.getUrl( '', { diff: revId } );
+	}
+
+	function createDiffLink( revId ) {
+		return $( '<a>' ).attr( { href: getDiffUrl( revId ), target: '_blank' } ).text( revId );
+	}
+
+	function renderMainDashboard( entries ) {
 		$dashboard.empty();
 
 		var toolbar = $( '<div>' ).addClass( 'collabpatrol-dash-toolbar' );
@@ -54,15 +71,18 @@
 		filterSelect.getMenu().on( 'select', function ( item ) {
 			if ( item ) {
 				currentFilter = item.getData();
-				loadAndRender();
+				loadAndRenderMainDashboard();
 			}
 		} );
 
 		toolbar.append( filterSelect.$element );
-		toolbar.append(
-			createBtn( '↺ ' + mw.msg( 'collabpatrol-dashboard-filter-all' ), 'grey', function () {
-				loadAndRender();
-			} )
+		toolbar.append( createBtn( '↺ ' + mw.msg( 'collabpatrol-dashboard-filter-all' ), 'grey', function () {
+			loadAndRenderMainDashboard();
+		} ) );
+		toolbar.append( $( '<a>' )
+			.addClass( 'collabpatrol-btn collabpatrol-btn-green' )
+			.attr( 'href', userDashboardUrl )
+			.text( mw.msg( 'collabpatrol-user-dashboard-open' ) )
 		);
 		$dashboard.append( toolbar );
 
@@ -95,17 +115,13 @@
 				tr.addClass( 'collabpatrol-dash-row-urgent' );
 			}
 
-			var diffUrl = mw.util.getUrl( '', { diff: entry.revId } );
-			tr.append(
-				$( '<td>' ).append( $( '<a>' ).attr( { href: diffUrl, target: '_blank' } ).text( entry.revId ) )
-			);
+			tr.append( $( '<td>' ).append( createDiffLink( entry.revId ) ) );
 			tr.append( $( '<td>' ).append( buildStatusBadge( entry.status ) ) );
 
 			var userLink = $( '<a>' )
 				.attr( 'href', mw.util.getUrl( 'User:' + entry.userText ) )
 				.text( entry.userText );
 			tr.append( $( '<td>' ).append( userLink ) );
-
 			tr.append( $( '<td>' ).text( entry.comment || '' ) );
 
 			var ageCell = $( '<td>' ).text( CP.formatTimeElapsed( elapsed ) );
@@ -116,36 +132,32 @@
 
 			var actions = $( '<td>' ).addClass( 'collabpatrol-dash-actions' );
 
-			( function ( e ) {
-				if ( e.status === 'pending' ) {
-					actions.append( createBtn( mw.msg( 'collabpatrol-btn-take' ), 'green', function () {
-						CP.api.setStatus( e.revId, 'in_progress', e.comment ).then( loadAndRender );
-					} ) );
-				} else if ( e.status === 'in_progress' ) {
-					actions.append( createBtn( mw.msg( 'collabpatrol-btn-finish' ), 'green', function () {
-						CP.api.setStatus( e.revId, 'finished', e.comment ).then( loadAndRender );
-					} ) );
-				}
+			if ( entry.status === 'pending' ) {
+				actions.append( createBtn( mw.msg( 'collabpatrol-btn-take' ), 'green', function () {
+					CP.api.setStatus( entry.revId, 'in_progress', entry.comment ).then( loadAndRenderMainDashboard );
+				} ) );
+			} else if ( entry.status === 'in_progress' ) {
+				actions.append( createBtn( mw.msg( 'collabpatrol-btn-finish' ), 'green', function () {
+					CP.api.setStatus( entry.revId, 'finished', entry.comment ).then( loadAndRenderMainDashboard );
+				} ) );
+			}
 
-				if ( isAdmin ) {
-					actions.append( ' ' );
-					actions.append( createBtn( '✕', 'grey', function () {
-						if ( !window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
-							return;
-						}
-						CP.api.removeEntry( e.revId ).then( loadAndRender );
-					} ) );
+			if ( isAdmin ) {
+				actions.append( createBtn( '✕', 'grey', function () {
+					if ( !window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
+						return;
+					}
+					CP.api.removeEntry( entry.revId ).then( loadAndRenderMainDashboard );
+				} ) );
 
-					actions.append( ' ' );
-					var blockUrl = mw.util.getUrl( 'Special:Block/' + e.userText );
-					actions.append(
-						$( '<a>' )
-							.addClass( 'collabpatrol-btn collabpatrol-btn-red' )
-							.attr( { href: blockUrl, target: '_blank' } )
-							.text( mw.msg( 'collabpatrol-btn-ban' ) )
-					);
-				}
-			}( entry ) );
+				var blockUrl = mw.util.getUrl( 'Special:Block/' + entry.userText );
+				actions.append(
+					$( '<a>' )
+						.addClass( 'collabpatrol-btn collabpatrol-btn-red' )
+						.attr( { href: blockUrl, target: '_blank' } )
+						.text( mw.msg( 'collabpatrol-btn-ban' ) )
+				);
+			}
 
 			tr.append( actions );
 			tbody.append( tr );
@@ -155,16 +167,135 @@
 		$dashboard.append( table );
 	}
 
-	function loadAndRender() {
-		$dashboard.html( '<p>…</p>' );
-		CP.api.listEntries( currentFilter ).then( function ( entries ) {
-			renderDashboard( entries );
+	function renderUserDashboard( data ) {
+		$userDashboard.empty();
+
+		$userDashboard.append(
+			$( '<p>' )
+				.addClass( 'collabpatrol-userdash-help' )
+				.text( mw.msg( 'collabpatrol-userdash-helptext' ) )
+		);
+
+		var sections = [
+			{
+				id: 'mentions',
+				title: mw.msg( 'collabpatrol-userdash-section-mentions' ),
+				empty: mw.msg( 'collabpatrol-userdash-empty-mentions' ),
+				rows: data.mentions || []
+			},
+			{
+				id: 'inprogress',
+				title: mw.msg( 'collabpatrol-userdash-section-inprogress' ),
+				empty: mw.msg( 'collabpatrol-userdash-empty-inprogress' ),
+				rows: data.inProgress || []
+			},
+			{
+				id: 'suggested',
+				title: mw.msg( 'collabpatrol-userdash-section-suggested' ),
+				empty: mw.msg( 'collabpatrol-userdash-empty-suggested' ),
+				rows: data.suggestedPending || []
+			}
+		];
+
+		sections.forEach( function ( section ) {
+			var block = $( '<section>' ).addClass( 'collabpatrol-userdash-section' );
+			block.append( $( '<h2>' ).text( section.title ) );
+
+			if ( !section.rows.length ) {
+				block.append( $( '<p>' ).text( section.empty ) );
+				$userDashboard.append( block );
+				return;
+			}
+
+			var table = $( '<table>' ).addClass( 'wikitable collabpatrol-userdash-table' );
+			table.append(
+				$( '<thead>' ).append(
+					$( '<tr>' ).append(
+						$( '<th>' ).text( mw.msg( 'collabpatrol-userdash-col-revision' ) ),
+						$( '<th>' ).text( mw.msg( 'collabpatrol-userdash-col-status' ) ),
+						$( '<th>' ).text( mw.msg( 'collabpatrol-userdash-col-from' ) ),
+						$( '<th>' ).text( mw.msg( 'collabpatrol-userdash-col-message' ) ),
+						$( '<th>' ).text( mw.msg( 'collabpatrol-userdash-col-age' ) ),
+						$( '<th>' ).text( mw.msg( 'collabpatrol-userdash-col-actions' ) )
+					)
+				)
+			);
+
+			var tbody = $( '<tbody>' );
+			section.rows.forEach( function ( row ) {
+				var revId = row.revId;
+				var rowTime = section.id === 'mentions' ? row.mentionTimestamp : row.timestamp;
+				var elapsed = CP.now() - rowTime * 1000;
+				var tr = $( '<tr>' );
+
+				tr.append( $( '<td>' ).append( createDiffLink( revId ) ) );
+				tr.append( $( '<td>' ).append( buildStatusBadge( row.status ) ) );
+
+				if ( section.id === 'mentions' ) {
+					tr.append( $( '<td>' ).text( row.fromUserText ) );
+					tr.append( $( '<td>' ).text( row.message || row.entryComment || '' ) );
+				} else {
+					tr.append( $( '<td>' ).text( row.userText ) );
+					tr.append( $( '<td>' ).text( row.comment || '' ) );
+				}
+
+				tr.append( $( '<td>' ).text( CP.formatTimeElapsed( elapsed ) ) );
+
+				var actions = $( '<td>' ).addClass( 'collabpatrol-dash-actions' );
+				actions.append(
+					$( '<a>' )
+						.addClass( 'collabpatrol-btn collabpatrol-btn-grey' )
+						.attr( { href: getDiffUrl( revId ), target: '_blank' } )
+						.text( mw.msg( 'collabpatrol-userdash-open-diff' ) )
+				);
+
+				if ( section.id === 'suggested' && row.status === 'pending' ) {
+					actions.append( createBtn( mw.msg( 'collabpatrol-userdash-take' ), 'green', function () {
+						CP.api.setStatus( revId, 'in_progress', row.comment || '' ).then( loadAndRenderUserDashboard );
+					} ) );
+				}
+				if ( section.id === 'inprogress' && row.status === 'in_progress' ) {
+					actions.append( createBtn( mw.msg( 'collabpatrol-userdash-finish' ), 'green', function () {
+						CP.api.setStatus( revId, 'finished', row.comment || '' ).then( loadAndRenderUserDashboard );
+					} ) );
+				}
+
+				tr.append( actions );
+				tbody.append( tr );
+			} );
+
+			table.append( tbody );
+			block.append( table );
+			$userDashboard.append( block );
 		} );
 	}
 
-	loadAndRender();
-	if ( CP.config.refreshInterval > 0 ) {
-		setInterval( loadAndRender, CP.config.refreshInterval );
+	function loadAndRenderMainDashboard() {
+		$dashboard.html( '<p>…</p>' );
+		CP.api.listEntries( currentFilter ).then( function ( entries ) {
+			renderMainDashboard( entries );
+		} );
+	}
+
+	function loadAndRenderUserDashboard() {
+		$userDashboard.html( '<p>…</p>' );
+		CP.api.getUserDashboard().then( function ( data ) {
+			renderUserDashboard( data );
+		} );
+	}
+
+	if ( isMainDashboard ) {
+		loadAndRenderMainDashboard();
+		if ( CP.config.refreshInterval > 0 ) {
+			setInterval( loadAndRenderMainDashboard, CP.config.refreshInterval );
+		}
+	}
+
+	if ( isUserDashboard ) {
+		loadAndRenderUserDashboard();
+		if ( CP.config.refreshInterval > 0 ) {
+			setInterval( loadAndRenderUserDashboard, CP.config.refreshInterval );
+		}
 	}
 
 }() );

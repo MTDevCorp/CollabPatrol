@@ -69,6 +69,17 @@ class SpecialCollabPatrol extends SpecialPage {
 			$this->msg( 'collabpatrol-stats-title' )->text()
 		);
 		$out->addHTML( Html::rawElement( 'p', [ 'class' => 'collabpatrol-stats-link' ], $statsLink ) );
+
+		$userDashboardLink = $this->getLinkRenderer()->makeLink(
+			SpecialPage::getTitleFor( 'CollabUserDashboard' ),
+			$this->msg( 'collabpatrol-user-dashboard-open' )->text()
+		);
+		$out->addHTML( Html::rawElement(
+			'div',
+			[ 'class' => 'collabpatrol-userdash-promo' ],
+			Html::element( 'strong', [], $this->msg( 'collabpatrol-user-dashboard-promo' )->text() ) .
+			' ' . $userDashboardLink
+		) );
 	}
 
 	private function renderStats( $out ): void {
