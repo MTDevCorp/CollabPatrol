@@ -1,0 +1,51 @@
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editors / IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# PHP / Composer
+/vendor/
+composer.phar
+composer.lock
+
+# Node / JS tooling (eslint, stylelint, npm scripts...)
+/node_modules/
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+package-lock.json
+.eslintcache
+
+# Tests / CI
+/.phpunit.result.cache
+/coverage/
+/.phpunit.cache/
+
+# Logs
+*.log
+
+# Local config / secrets (in case a dev drops one in the extension folder)
+LocalSettings.php
+*.local.php
+.env
+
+# Local disposable MediaWiki test stack
+/docker-compose.yml
+/docker/
+
+# Build artifacts
+/dist/
+/build/

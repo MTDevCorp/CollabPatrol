@@ -23,6 +23,27 @@ The idea is simple: instead of patrolling alone, patrollers can flag a revision 
    ```
 4. Navigate to `Special:Version` to confirm the extension is loaded.
 
+## Quick local test
+
+For a disposable local wiki with CollabPatrol enabled, start Docker Desktop and run:
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:8080`, then log in with:
+
+```text
+User: Admin
+Password: the MW_ADMIN_PASS value from your local .env file
+```
+
+The dev wiki uses MariaDB and stores its local data in Docker volumes. To start again from scratch:
+
+```bash
+docker compose down -v
+```
+
 ## Permissions
 
 | Right | Default groups | Description |
