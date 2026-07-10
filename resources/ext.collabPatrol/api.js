@@ -96,6 +96,17 @@
 			} );
 		},
 
+		searchUsers: function ( prefix ) {
+			return api.get( {
+				action: 'query',
+				list: 'allusers',
+				auprefix: prefix || '',
+				aulimit: 8
+			} ).then( function ( data ) {
+				return ( data.query && data.query.allusers ) || [];
+			} );
+		},
+
 
 		chatGet: function ( revId ) {
 			return api.get( {

@@ -80,6 +80,12 @@
 
 		var $counter = $( '<span>' ).addClass( 'collabpatrol-m-chat-counter' ).text( '0/' + MAX_LEN );
 		var $error = $( '<div>' ).addClass( 'collabpatrol-m-chat-error' ).hide();
+		var $suggestions = $( '<div>' ).addClass( 'collabpatrol-m-chat-mention-suggestions' ).hide();
+		var mentionTimer = null;
+		var mentionRequestId = 0;
+		var activeMention = null;
+		var suggestedUsers = [];
+		var selectedSuggestion = -1;
 		$composer.data( 'cp-input', $input );
 		$composer.data( 'cp-send', null );
 		$composer.data( 'cp-error', $error );
@@ -114,16 +120,146 @@
 			} else {
 				$counter.removeClass( 'collabpatrol-m-chat-counter-over' );
 			}
+			scheduleMentionSuggestions();
 		} );
 
 		$input.on( 'keydown', function ( e ) {
+			if ( $suggestions.is( ':visible' ) ) {
+				if ( e.key === 'ArrowDown' ) {
+					e.preventDefault();
+					selectMentionSuggestion( selectedSuggestion + 1 );
+					return;
+				}
+				if ( e.key === 'ArrowUp' ) {
+					e.preventDefault();
+					selectMentionSuggestion( selectedSuggestion - 1 );
+					return;
+				}
+				if ( e.key === 'Enter' || e.key === 'Tab' ) {
+					e.preventDefault();
+					applyMentionSuggestion( selectedSuggestion < 0 ? 0 : selectedSuggestion );
+					return;
+				}
+				if ( e.key === 'Escape' ) {
+					hideMentionSuggestions();
+					return;
+				}
+			}
 			if ( ( e.ctrlKey || e.metaKey ) && e.key === 'Enter' ) {
 				$btn.trigger( 'click' );
 			}
 		} );
 
+		$input.on( 'click keyup', function ( e ) {
+			if ( e.type === 'keyup' && [ 'ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape' ].indexOf( e.key ) !== -1 ) {
+				return;
+			}
+			scheduleMentionSuggestions();
+		} );
+
+		$input.on( 'blur', function () {
+			setTimeout( hideMentionSuggestions, 150 );
+		} );
+
+		function scheduleMentionSuggestions() {
+			clearTimeout( mentionTimer );
+			mentionTimer = setTimeout( updateMentionSuggestions, 120 );
+		}
+
+		function updateMentionSuggestions() {
+			activeMention = getActiveMention();
+			if ( !activeMention ) {
+				hideMentionSuggestions();
+				return;
+			}
+
+			var requestId = ++mentionRequestId;
+			CP.api.searchUsers( activeMention.prefix.replace( /_/g, ' ' ) ).then( function ( users ) {
+				if ( requestId !== mentionRequestId ) {
+					return;
+				}
+				if ( !getActiveMention() ) {
+					hideMentionSuggestions();
+					return;
+				}
+				renderMentionSuggestions( users );
+			} ).catch( hideMentionSuggestions );
+		}
+
+		function getActiveMention() {
+			var el = $input[ 0 ];
+			var cursor = el.selectionStart;
+			var beforeCursor = $input.val().slice( 0, cursor );
+			var match = /(^|[\s([{<])@([^\s@:,;!?.)\]\}<>]{0,85})$/u.exec( beforeCursor );
+			if ( !match ) {
+				return null;
+			}
+			return {
+				start: cursor - match[ 2 ].length - 1,
+				end: cursor,
+				prefix: match[ 2 ]
+			};
+		}
+
+		function renderMentionSuggestions( users ) {
+			suggestedUsers = users || [];
+			$suggestions.empty();
+			selectedSuggestion = suggestedUsers.length ? 0 : -1;
+
+			if ( !suggestedUsers.length ) {
+				hideMentionSuggestions();
+				return;
+			}
+
+			suggestedUsers.forEach( function ( user, index ) {
+				var $item = $( '<button>' )
+					.attr( 'type', 'button' )
+					.addClass( 'collabpatrol-m-chat-mention-suggestion' )
+					.toggleClass( 'collabpatrol-m-chat-mention-suggestion-active', index === selectedSuggestion )
+					.text( user.name )
+					.on( 'mousedown', function ( e ) {
+						e.preventDefault();
+						applyMentionSuggestion( index );
+					} );
+				$suggestions.append( $item );
+			} );
+			$suggestions.show();
+		}
+
+		function selectMentionSuggestion( index ) {
+			if ( !suggestedUsers.length ) {
+				return;
+			}
+			selectedSuggestion = ( index + suggestedUsers.length ) % suggestedUsers.length;
+			$suggestions.children().removeClass( 'collabpatrol-m-chat-mention-suggestion-active' )
+				.eq( selectedSuggestion ).addClass( 'collabpatrol-m-chat-mention-suggestion-active' );
+		}
+
+		function applyMentionSuggestion( index ) {
+			var user = suggestedUsers[ index ];
+			activeMention = getActiveMention();
+			if ( !user || !activeMention ) {
+				return;
+			}
+			var mentionText = '@' + user.name.replace( /\s+/g, '_' ) + ' ';
+			var value = $input.val();
+			var nextValue = value.slice( 0, activeMention.start ) + mentionText + value.slice( activeMention.end );
+			var cursor = activeMention.start + mentionText.length;
+			$input.val( nextValue );
+			$input[ 0 ].setSelectionRange( cursor, cursor );
+			$input.trigger( 'input' );
+			hideMentionSuggestions();
+		}
+
+		function hideMentionSuggestions() {
+			suggestedUsers = [];
+			selectedSuggestion = -1;
+			$suggestions.hide().empty();
+		}
+
 		$composer.append(
 			$input,
+			$suggestions,
 			$( '<div>' ).addClass( 'collabpatrol-m-chat-composer-row' ).append( $counter, $btn ),
 			$error
 		);

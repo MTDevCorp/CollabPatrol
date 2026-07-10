@@ -273,15 +273,12 @@ class CollabPatrolStore {
 		if ( !$rows ) {
 			return;
 		}
-		foreach ( $rows as $row ) {
-			$db->upsert(
-				'collab_patrol_chat_mention',
-				$row,
-				[ [ 'cpcm_msg_id', 'cpcm_target_user_text' ] ],
-				[],
-				__METHOD__
-			);
-		}
+		$db->insert(
+			'collab_patrol_chat_mention',
+			$rows,
+			__METHOD__,
+			[ 'IGNORE' ]
+		);
 	}
 
 	public function getActiveMentionsForUser( string $userText, int $limit = 50 ): array {

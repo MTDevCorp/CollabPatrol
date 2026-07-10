@@ -145,6 +145,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	position: relative;
 }
 
 .cp-chat-input {
@@ -165,6 +166,33 @@
 	outline: none;
 	border-color: #36c;
 	box-shadow: 0 0 0 2px rgba( 51, 102, 204, 0.1 );
+}
+
+.cp-chat-mention-suggestions {
+	border: 1px solid #a2b9d1;
+	border-radius: 4px;
+	background: #fff;
+	box-shadow: 0 4px 12px rgba( 0, 0, 0, 0.14 );
+	max-height: 168px;
+	overflow-y: auto;
+}
+
+.cp-chat-mention-suggestion {
+	display: block;
+	width: 100%;
+	border: 0;
+	background: transparent;
+	color: #202122;
+	cursor: pointer;
+	font: inherit;
+	padding: 6px 9px;
+	text-align: left;
+}
+
+.cp-chat-mention-suggestion:hover,
+.cp-chat-mention-suggestion-active {
+	background: #eaf0fb;
+	color: #36c;
 }
 
 .cp-chat-composer-row {
