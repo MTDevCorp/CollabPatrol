@@ -2,8 +2,7 @@
 	"name": "CollabPatrol",
 	"version": "1.1.0",
 	"author": [
-		"Muffy",
-		"Janus"
+		"MTDevCorp",
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:CollabPatrol",
 	"descriptionmsg": "collabpatrol-desc",
