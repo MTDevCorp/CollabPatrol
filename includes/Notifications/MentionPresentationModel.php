@@ -18,9 +18,10 @@ class MentionPresentationModel extends EchoEventPresentationModel {
 
 	/** @inheritDoc */
 	public function getHeaderMessage() {
+		$agent = $this->event->getAgent();
 		$msg = $this->msg( 'notification-header-collabpatrol-mention' );
 		$msg->params(
-			$this->getAgentForOutput(),
+			$agent ? $agent->getName() : '',
 			$this->getTruncatedTitleText( $this->event->getTitle(), true ),
 			$this->getViewingUserForGender()
 		);
