@@ -5,6 +5,8 @@ namespace MediaWiki\Extension\CollabPatrol\Api;
 use ApiBase;
 use ApiMain;
 use MediaWiki\Extension\CollabPatrol\CollabPatrolStore;
+use MediaWiki\Extension\CollabPatrol\MentionParser;
+use MediaWiki\Extension\CollabPatrol\Notifications\MentionNotifier;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\User\UserFactory;
 use Wikimedia\ParamValidator\ParamValidator;
@@ -161,9 +163,17 @@ class ApiCollabPatrol extends ApiBase {
 		$isMod = $this->isChatModerator( $user );
 		$isBanned = $this->store->isUserChatBanned( $user->getName() );
 
+		$texts = [];
+		foreach ( $messages as $i => $msg ) {
+			if ( !$msg['deleted'] ) {
+				$texts[$i] = $msg['message'];
+			}
+		}
+		$resolvedMentions = $this->resolveMentions( $texts );
+
 		$sanitized = [];
 		$userTexts = [];
-		foreach ( $messages as $msg ) {
+		foreach ( $messages as $i => $msg ) {
 			$userTexts[] = $msg['userText'];
 			if ( $msg['deleted'] ) {
 				$sanitized[] = [
@@ -174,6 +184,9 @@ class ApiCollabPatrol extends ApiBase {
 					'userText' => $isMod ? $msg['userText'] : '',
 				];
 			} else {
+				$msg['mentions'] = array_map( static function ( array $m ) {
+					return [ 'raw' => $m['raw'], 'name' => $m['name'] ];
+				}, $resolvedMentions[$i] ?? [] );
 				$sanitized[] = $msg;
 			}
 		}
@@ -230,13 +243,78 @@ class ApiCollabPatrol extends ApiBase {
 		}
 
 		$msgId = $this->store->addChatMessage( $revId, $user, $message );
+		$mentioned = $this->notifyMentions( $revId, (int)$entry['pageId'], $user, $message );
 		$this->getResult()->addValue( null, 'collabpatrol', [
 			'result' => 'success',
 			'msgId' => $msgId,
+			'mentioned' => $mentioned,
 			'userText' => $user->getName(),
 			'timestamp' => time(),
 			'message' => $message,
 		] );
+	}
+
+	/**
+	 * Resolves @mentions to existing users, with a single DB query.
+	 *
+	 * @param string[] $texts Message texts, keyed by any key
+	 * @return array[] Same keys => list of [ 'raw', 'name', 'id' ] for existing users only
+	 */
+	private function resolveMentions( array $texts ): array {
+		$candidates = [];
+		$names = [];
+		foreach ( $texts as $key => $text ) {
+			foreach ( MentionParser::extract( $text ) as $candidate ) {
+				$target = $this->userFactory->newFromName( $candidate['name'] );
+				if ( !$target ) {
+					continue;
+				}
+				$candidates[$key][] = [ 'raw' => $candidate['raw'], 'name' => $target->getName() ];
+				$names[] = $target->getName();
+			}
+		}
+
+		$ids = $this->store->getUserIdsByName( $names );
+		$resolved = [];
+		foreach ( $candidates as $key => $list ) {
+			foreach ( $list as $item ) {
+				if ( isset( $ids[$item['name']] ) ) {
+					$item['id'] = $ids[$item['name']];
+					$resolved[$key][] = $item;
+				}
+			}
+		}
+		return $resolved;
+	}
+
+	/**
+	 * Sends an Echo notification to every patroller mentioned in a chat message.
+	 *
+	 * @return string[] Names of the users who were notified
+	 */
+	private function notifyMentions( int $revId, int $pageId, $user, string $message ): array {
+		$resolved = $this->resolveMentions( [ $message ] )[0] ?? [];
+
+		$recipients = [];
+		foreach ( $resolved as $item ) {
+			if ( $item['name'] === $user->getName() || isset( $recipients[$item['id']] ) ) {
+				continue;
+			}
+			$target = $this->userFactory->newFromId( $item['id'] );
+			if ( !$target->isAllowed( 'collabpatrol-use' ) ) {
+				continue;
+			}
+			$recipients[$item['id']] = $item['name'];
+			if ( count( $recipients ) >= MentionParser::MAX_MENTIONS ) {
+				break;
+			}
+		}
+
+		if ( $recipients && $this->getConfig()->get( 'CollabPatrolEnableEcho' ) ) {
+			MentionNotifier::notify( $pageId, $revId, $user, $message, array_keys( $recipients ) );
+		}
+
+		return array_values( $recipients );
 	}
 
 	private function executeChatDelete( array $params, $user ): void {

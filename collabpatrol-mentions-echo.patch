@@ -1,0 +1,885 @@
+diff --git a/README.md b/README.md
+index e14d6ea..4b177db 100644
+--- a/README.md
++++ b/README.md
+@@ -47,7 +47,7 @@ All settings go in `LocalSettings.php`.
+ | `$wgCollabPatrolExpirationDelay` | `172800` (48 h) | Seconds before a patrol entry expires automatically |
+ | `$wgCollabPatrolUrgencyThreshold` | `3600` (1 h) | Seconds before a pending entry is marked urgent |
+ | `$wgCollabPatrolAutoPatrol` | `true` | Automatically mark the revision as patrolled when status is set to *finished* |
+-| `$wgCollabPatrolEnableEcho` | `true` | Send Echo notifications when patrol status changes |
++| `$wgCollabPatrolEnableEcho` | `true` | Send Echo notifications when someone is @mentioned in the patrol chat |
+ | `$wgCollabPatrolChatEnabled` | `true` | Enable the per-diff discussion panel |
+ | `$wgCollabPatrolChatMaxLength` | `500` | Maximum character length for a chat message |
+ | `$wgCollabPatrolChatModerators` | `[]` | Optional additional usernames allowed to moderate chat |
+@@ -73,6 +73,12 @@ Each user can configure CollabPatrol in `Special:Preferences`, under Appearance
+ | Show history block on entries | Enabled | Display or hide entry history in diff interfaces |
+ | Use compact layout for controls | Disabled | Reduce spacing in desktop and mobile controls |
+ 
++## Mentions and Echo
++
++In the discussion panel, type `@` followed by a username to get suggestions. Mentions are written `@Username` (underscores stand for spaces) or `@[User Name]`. Existing users are highlighted in the message, and messages mentioning you are marked.
++
++If the [Echo](https://www.mediawiki.org/wiki/Extension:Echo) extension is installed and `$wgCollabPatrolEnableEcho` is `true`, every mentioned user who holds the `collabpatrol-use` right receives a notification (up to 5 per message, the author is never notified). The link opens the diff with the discussion panel already open. Users can opt out in `Special:Preferences` > Notifications (category *Patrol chat mentions*). Echo is optional: without it, mentions are still highlighted.
++
+ ## How it works
+ 
+ 1. A patroller views a diff and is unsure about the revision.
+diff --git a/extension.json b/extension.json
+index 9eee567..485fe7f 100644
+--- a/extension.json
++++ b/extension.json
+@@ -2,7 +2,7 @@
+ 	"name": "CollabPatrol",
+ 	"version": "1.1.0",
+ 	"author": [
+-		"MTDevCorp",
++		"MTDevCorp"
+ 	],
+ 	"url": "https://www.mediawiki.org/wiki/Extension:CollabPatrol",
+ 	"descriptionmsg": "collabpatrol-desc",
+@@ -56,7 +56,8 @@
+ 		"GetPreferences": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PreferencesHooks::onGetPreferences",
+ 		"BeforePageDisplay": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PageHooks::onBeforePageDisplay",
+ 		"DifferenceEngineViewHeader": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PageHooks::onDifferenceEngineViewHeader",
+-		"SkinTemplateNavigation::Universal": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\SkinHooks::onSkinTemplateNavigationUniversal"
++		"SkinTemplateNavigation::Universal": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\SkinHooks::onSkinTemplateNavigationUniversal",
++		"BeforeCreateEchoEvent": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\EchoHooks::onBeforeCreateEchoEvent"
+ 	},
+ 	"DefaultUserOptions": {
+ 		"collabpatrol-refresh-interval": 30,
+@@ -78,6 +79,7 @@
+ 			"scripts": [
+ 				"resources/ext.collabPatrol/core.js",
+ 				"resources/ext.collabPatrol/api.js",
++				"resources/ext.collabPatrol/mentions.js",
+ 				"resources/ext.collabPatrol/ui.js",
+ 				"resources/ext.collabPatrol/rc.js"
+ 			],
+@@ -257,7 +259,7 @@
+ 		},
+ 		"CollabPatrolEnableEcho": {
+ 			"value": true,
+-			"description": "Send Echo notifications when patrol status changes"
++			"description": "Send Echo notifications when someone is @mentioned in the patrol chat"
+ 		},
+ 		"CollabPatrolAutoPatrol": {
+ 			"value": true,
+diff --git a/i18n/en.json b/i18n/en.json
+index a5e02cc..1aeae17 100644
+--- a/i18n/en.json
++++ b/i18n/en.json
+@@ -59,7 +59,7 @@
+ 	"collabpatrol-stats-finished": "Finished (current)",
+ 	"collabpatrol-stats-top-patrollers": "Top patrollers",
+ 	"collabpatrol-chat-title": "Discussion",
+-	"collabpatrol-chat-placeholder": "Write a message… (Ctrl+Enter to send)",
++	"collabpatrol-chat-placeholder": "Write a message… (@ to mention, Ctrl+Enter to send)",
+ 	"collabpatrol-chat-btn-send": "Send",
+ 	"collabpatrol-chat-btn-delete": "Delete message",
+ 	"collabpatrol-chat-deleted": "[Message deleted by moderator]",
+@@ -88,5 +88,9 @@
+ 	"collabpatrol-pref-notify-finished": "Show notification after finishing an entry",
+ 	"collabpatrol-pref-chat-open-default": "Open discussion panel by default",
+ 	"collabpatrol-pref-show-history": "Show history block on entries",
+-	"collabpatrol-pref-compact-mode": "Use compact layout for controls"
++	"collabpatrol-pref-compact-mode": "Use compact layout for controls",
++	"echo-category-title-collabpatrol-mention": "{{PLURAL:$1|Patrol chat mention|Patrol chat mentions}}",
++	"echo-pref-tooltip-collabpatrol-mention": "Notify me when someone mentions me in a patrol discussion.",
++	"notification-header-collabpatrol-mention": "$1 mentioned you in the patrol discussion on $2",
++	"collabpatrol-echo-link-discussion": "View the discussion"
+ }
+diff --git a/i18n/fr.json b/i18n/fr.json
+index 2ff5709..e77b5f0 100644
+--- a/i18n/fr.json
++++ b/i18n/fr.json
+@@ -59,7 +59,7 @@
+ 	"collabpatrol-stats-finished": "Terminés (actuel)",
+ 	"collabpatrol-stats-top-patrollers": "Top patrouilleurs",
+ 	"collabpatrol-chat-title": "Discussion",
+-	"collabpatrol-chat-placeholder": "Écrire un message… (Ctrl+Entrée pour envoyer)",
++	"collabpatrol-chat-placeholder": "Écrire un message… (@ pour mentionner, Ctrl+Entrée pour envoyer)",
+ 	"collabpatrol-chat-btn-send": "Envoyer",
+ 	"collabpatrol-chat-btn-delete": "Supprimer le message",
+ 	"collabpatrol-chat-deleted": "[Message supprimé par un modérateur]",
+@@ -88,5 +88,9 @@
+ 	"collabpatrol-pref-notify-finished": "Afficher une notification après la fin d'une entrée",
+ 	"collabpatrol-pref-chat-open-default": "Ouvrir la discussion par défaut",
+ 	"collabpatrol-pref-show-history": "Afficher l'historique des entrées",
+-	"collabpatrol-pref-compact-mode": "Utiliser une mise en page compacte"
++	"collabpatrol-pref-compact-mode": "Utiliser une mise en page compacte",
++	"echo-category-title-collabpatrol-mention": "{{PLURAL:$1|Mention dans le chat de patrouille|Mentions dans le chat de patrouille}}",
++	"echo-pref-tooltip-collabpatrol-mention": "Me notifier quand quelqu'un me mentionne dans une discussion de patrouille.",
++	"notification-header-collabpatrol-mention": "$1 vous a mentionné dans la discussion de patrouille sur $2",
++	"collabpatrol-echo-link-discussion": "Voir la discussion"
+ }
+diff --git a/i18n/qqq.json b/i18n/qqq.json
+index a36f532..fe02bf7 100644
+--- a/i18n/qqq.json
++++ b/i18n/qqq.json
+@@ -85,5 +85,9 @@
+ 	"collabpatrol-pref-notify-finished": "Toggle label for showing a notification when an entry is marked finished.",
+ 	"collabpatrol-pref-chat-open-default": "Toggle label for opening the discussion panel by default on active entries.",
+ 	"collabpatrol-pref-show-history": "Toggle label for showing the history block under an entry.",
+-	"collabpatrol-pref-compact-mode": "Toggle label for using a compact controls layout."
++	"collabpatrol-pref-compact-mode": "Toggle label for using a compact controls layout.",
++	"echo-category-title-collabpatrol-mention": "Echo notification category title. Parameters:\n* $1 - number of notifications",
++	"echo-pref-tooltip-collabpatrol-mention": "Echo preferences tooltip for the CollabPatrol mention category.",
++	"notification-header-collabpatrol-mention": "Echo notification header when a user is @mentioned in a patrol chat. Parameters:\n* $1 - name of the user who mentioned the recipient\n* $2 - title of the page the patrolled revision belongs to",
++	"collabpatrol-echo-link-discussion": "Label of the primary link of the mention notification, opening the diff with the discussion panel."
+ }
+diff --git a/includes/Api/ApiCollabPatrol.php b/includes/Api/ApiCollabPatrol.php
+index 2a8accd..536c780 100644
+--- a/includes/Api/ApiCollabPatrol.php
++++ b/includes/Api/ApiCollabPatrol.php
+@@ -5,6 +5,8 @@ namespace MediaWiki\Extension\CollabPatrol\Api;
+ use ApiBase;
+ use ApiMain;
+ use MediaWiki\Extension\CollabPatrol\CollabPatrolStore;
++use MediaWiki\Extension\CollabPatrol\MentionParser;
++use MediaWiki\Extension\CollabPatrol\Notifications\MentionNotifier;
+ use MediaWiki\Revision\RevisionStore;
+ use MediaWiki\User\UserFactory;
+ use Wikimedia\ParamValidator\ParamValidator;
+@@ -161,9 +163,17 @@ class ApiCollabPatrol extends ApiBase {
+ 		$isMod = $this->isChatModerator( $user );
+ 		$isBanned = $this->store->isUserChatBanned( $user->getName() );
+ 
++		$texts = [];
++		foreach ( $messages as $i => $msg ) {
++			if ( !$msg['deleted'] ) {
++				$texts[$i] = $msg['message'];
++			}
++		}
++		$resolvedMentions = $this->resolveMentions( $texts );
++
+ 		$sanitized = [];
+ 		$userTexts = [];
+-		foreach ( $messages as $msg ) {
++		foreach ( $messages as $i => $msg ) {
+ 			$userTexts[] = $msg['userText'];
+ 			if ( $msg['deleted'] ) {
+ 				$sanitized[] = [
+@@ -174,6 +184,9 @@ class ApiCollabPatrol extends ApiBase {
+ 					'userText' => $isMod ? $msg['userText'] : '',
+ 				];
+ 			} else {
++				$msg['mentions'] = array_map( static function ( array $m ) {
++					return [ 'raw' => $m['raw'], 'name' => $m['name'] ];
++				}, $resolvedMentions[$i] ?? [] );
+ 				$sanitized[] = $msg;
+ 			}
+ 		}
+@@ -230,15 +243,80 @@ class ApiCollabPatrol extends ApiBase {
+ 		}
+ 
+ 		$msgId = $this->store->addChatMessage( $revId, $user, $message );
++		$mentioned = $this->notifyMentions( $revId, (int)$entry['pageId'], $user, $message );
+ 		$this->getResult()->addValue( null, 'collabpatrol', [
+ 			'result' => 'success',
+ 			'msgId' => $msgId,
++			'mentioned' => $mentioned,
+ 			'userText' => $user->getName(),
+ 			'timestamp' => time(),
+ 			'message' => $message,
+ 		] );
+ 	}
+ 
++	/**
++	 * Resolves @mentions to existing users, with a single DB query.
++	 *
++	 * @param string[] $texts Message texts, keyed by any key
++	 * @return array[] Same keys => list of [ 'raw', 'name', 'id' ] for existing users only
++	 */
++	private function resolveMentions( array $texts ): array {
++		$candidates = [];
++		$names = [];
++		foreach ( $texts as $key => $text ) {
++			foreach ( MentionParser::extract( $text ) as $candidate ) {
++				$target = $this->userFactory->newFromName( $candidate['name'] );
++				if ( !$target ) {
++					continue;
++				}
++				$candidates[$key][] = [ 'raw' => $candidate['raw'], 'name' => $target->getName() ];
++				$names[] = $target->getName();
++			}
++		}
++
++		$ids = $this->store->getUserIdsByName( $names );
++		$resolved = [];
++		foreach ( $candidates as $key => $list ) {
++			foreach ( $list as $item ) {
++				if ( isset( $ids[$item['name']] ) ) {
++					$item['id'] = $ids[$item['name']];
++					$resolved[$key][] = $item;
++				}
++			}
++		}
++		return $resolved;
++	}
++
++	/**
++	 * Sends an Echo notification to every patroller mentioned in a chat message.
++	 *
++	 * @return string[] Names of the users who were notified
++	 */
++	private function notifyMentions( int $revId, int $pageId, $user, string $message ): array {
++		$resolved = $this->resolveMentions( [ $message ] )[0] ?? [];
++
++		$recipients = [];
++		foreach ( $resolved as $item ) {
++			if ( $item['name'] === $user->getName() || isset( $recipients[$item['id']] ) ) {
++				continue;
++			}
++			$target = $this->userFactory->newFromId( $item['id'] );
++			if ( !$target->isAllowed( 'collabpatrol-use' ) ) {
++				continue;
++			}
++			$recipients[$item['id']] = $item['name'];
++			if ( count( $recipients ) >= MentionParser::MAX_MENTIONS ) {
++				break;
++			}
++		}
++
++		if ( $recipients && $this->getConfig()->get( 'CollabPatrolEnableEcho' ) ) {
++			MentionNotifier::notify( $pageId, $revId, $user, $message, array_keys( $recipients ) );
++		}
++
++		return array_values( $recipients );
++	}
++
+ 	private function executeChatDelete( array $params, $user ): void {
+ 		$this->requirePostedParameters( [ 'msgid' ] );
+ 		if ( !$this->getConfig()->get( 'CollabPatrolChatEnabled' ) ) {
+diff --git a/includes/CollabPatrolStore.php b/includes/CollabPatrolStore.php
+index 4b1a77e..3998fd1 100644
+--- a/includes/CollabPatrolStore.php
++++ b/includes/CollabPatrolStore.php
+@@ -270,6 +270,29 @@ class CollabPatrolStore {
+ 		);
+ 	}
+ 
++	/**
++	 * @param string[] $names Normalized user names
++	 * @return int[] Map of existing user name => user ID
++	 */
++	public function getUserIdsByName( array $names ): array {
++		$names = array_values( array_unique( array_map( 'strval', $names ) ) );
++		if ( !$names ) {
++			return [];
++		}
++		$db = $this->lb->getConnection( DB_REPLICA );
++		$res = $db->select(
++			'user',
++			[ 'user_id', 'user_name' ],
++			[ 'user_name' => $names ],
++			__METHOD__
++		);
++		$ids = [];
++		foreach ( $res as $row ) {
++			$ids[$row->user_name] = (int)$row->user_id;
++		}
++		return $ids;
++	}
++
+ 	public function getChatMessage( int $msgId ): ?array {
+ 		$db = $this->lb->getConnection( DB_REPLICA );
+ 		$row = $db->selectRow(
+diff --git a/includes/Hooks/EchoHooks.php b/includes/Hooks/EchoHooks.php
+new file mode 100644
+index 0000000..7338571
+--- /dev/null
++++ b/includes/Hooks/EchoHooks.php
+@@ -0,0 +1,55 @@
++<?php
++
++namespace MediaWiki\Extension\CollabPatrol\Hooks;
++
++use MediaWiki\Extension\CollabPatrol\Notifications\MentionNotifier;
++use MediaWiki\Extension\CollabPatrol\Notifications\MentionPresentationModel;
++use MediaWiki\MediaWikiServices;
++
++/**
++ * Echo integration. These hooks are only called when the Echo extension is loaded.
++ */
++class EchoHooks {
++
++	public static function onBeforeCreateEchoEvent(
++		array &$notifications,
++		array &$notificationCategories,
++		array &$icons
++	): void {
++		$notificationCategories[MentionNotifier::EVENT_TYPE] = [
++			'priority' => 3,
++			'tooltip' => 'echo-pref-tooltip-collabpatrol-mention',
++		];
++
++		$notifications[MentionNotifier::EVENT_TYPE] = [
++			'category' => MentionNotifier::EVENT_TYPE,
++			'group' => 'interactive',
++			'section' => 'alert',
++			'presentation-model' => MentionPresentationModel::class,
++			'user-locators' => [ [ self::class . '::locateMentionedUsers' ] ],
++			'icon' => 'mention',
++		];
++	}
++
++	/**
++	 * Echo user locator: returns the users listed in the event's "mentioned-user-ids".
++	 *
++	 * @param \MediaWiki\Extension\Notifications\Model\Event $event
++	 * @return \MediaWiki\User\User[] Keyed by user ID
++	 */
++	public static function locateMentionedUsers( $event ): array {
++		$ids = $event->getExtraParam( 'mentioned-user-ids', [] );
++		if ( !is_array( $ids ) ) {
++			return [];
++		}
++		$userFactory = MediaWikiServices::getInstance()->getUserFactory();
++		$users = [];
++		foreach ( $ids as $id ) {
++			$id = (int)$id;
++			if ( $id > 0 ) {
++				$users[$id] = $userFactory->newFromId( $id );
++			}
++		}
++		return $users;
++	}
++}
+diff --git a/includes/MentionParser.php b/includes/MentionParser.php
+new file mode 100644
+index 0000000..ad8e3db
+--- /dev/null
++++ b/includes/MentionParser.php
+@@ -0,0 +1,53 @@
++<?php
++
++namespace MediaWiki\Extension\CollabPatrol;
++
++/**
++ * Extracts @mentions from a chat message.
++ *
++ * Supported syntaxes:
++ *  - @Username            (underscores are read as spaces: @Jean_Dupont)
++ *  - @[User with spaces]
++ */
++class MentionParser {
++
++	public const MAX_MENTIONS = 5;
++
++	private const MAX_CANDIDATES = 10;
++
++	private const PATTERN = '/(?<![\p{L}\p{N}_@\/])@(?:\[([^\[\]\r\n]{1,85})\]|([\p{L}\p{N}_][\p{L}\p{N}_.\'\-]{0,84}))/u';
++
++	/**
++	 * @param string $message
++	 * @return array[] List of [ 'raw' => string, 'name' => string ]
++	 */
++	public static function extract( string $message ): array {
++		if ( !preg_match_all( self::PATTERN, $message, $matches, PREG_SET_ORDER ) ) {
++			return [];
++		}
++
++		$found = [];
++		foreach ( $matches as $m ) {
++			if ( isset( $m[2] ) && $m[2] !== '' ) {
++				$name = rtrim( $m[2], ".'-" );
++				if ( $name === '' ) {
++					continue;
++				}
++				$raw = '@' . $name;
++			} else {
++				$name = $m[1] ?? '';
++				$raw = '@[' . $name . ']';
++			}
++			$name = trim( str_replace( '_', ' ', $name ) );
++			if ( $name === '' ) {
++				continue;
++			}
++			$found[$raw] = [ 'raw' => $raw, 'name' => $name ];
++			if ( count( $found ) >= self::MAX_CANDIDATES ) {
++				break;
++			}
++		}
++
++		return array_values( $found );
++	}
++}
+diff --git a/includes/Notifications/MentionNotifier.php b/includes/Notifications/MentionNotifier.php
+new file mode 100644
+index 0000000..b886a34
+--- /dev/null
++++ b/includes/Notifications/MentionNotifier.php
+@@ -0,0 +1,54 @@
++<?php
++
++namespace MediaWiki\Extension\CollabPatrol\Notifications;
++
++use MediaWiki\Extension\Notifications\Model\Event;
++use MediaWiki\Logger\LoggerFactory;
++use MediaWiki\MediaWikiServices;
++use MediaWiki\Registration\ExtensionRegistry;
++
++class MentionNotifier {
++
++	public const EVENT_TYPE = 'collabpatrol-mention';
++
++	/**
++	 * Creates one Echo event notifying every recipient of a mention.
++	 *
++	 * @param int $pageId Page the patrolled revision belongs to
++	 * @param int $revId Patrolled revision
++	 * @param \MediaWiki\User\User $agent Author of the chat message
++	 * @param string $message Chat message
++	 * @param int[] $recipientIds User IDs to notify
++	 * @return bool Whether an event was created
++	 */
++	public static function notify( int $pageId, int $revId, $agent, string $message, array $recipientIds ): bool {
++		if ( !$recipientIds || !ExtensionRegistry::getInstance()->isLoaded( 'Echo' ) ) {
++			return false;
++		}
++
++		$title = MediaWikiServices::getInstance()->getTitleFactory()->newFromID( $pageId );
++		if ( !$title ) {
++			return false;
++		}
++
++		try {
++			Event::create( [
++				'type' => self::EVENT_TYPE,
++				'title' => $title,
++				'agent' => $agent,
++				'extra' => [
++					'cp-revid' => $revId,
++					'excerpt' => mb_strimwidth( $message, 0, 140, '…' ),
++					'mentioned-user-ids' => array_values( array_map( 'intval', $recipientIds ) ),
++				],
++			] );
++			return true;
++		} catch ( \Throwable $e ) {
++			LoggerFactory::getInstance( 'CollabPatrol' )->warning(
++				'Could not create Echo mention event: {message}',
++				[ 'message' => $e->getMessage() ]
++			);
++			return false;
++		}
++	}
++}
+diff --git a/includes/Notifications/MentionPresentationModel.php b/includes/Notifications/MentionPresentationModel.php
+new file mode 100644
+index 0000000..9cbb82d
+--- /dev/null
++++ b/includes/Notifications/MentionPresentationModel.php
+@@ -0,0 +1,59 @@
++<?php
++
++namespace MediaWiki\Extension\CollabPatrol\Notifications;
++
++use MediaWiki\Extension\Notifications\Formatters\EchoEventPresentationModel;
++
++class MentionPresentationModel extends EchoEventPresentationModel {
++
++	/** @inheritDoc */
++	public function canRender() {
++		return (bool)$this->event->getTitle();
++	}
++
++	/** @inheritDoc */
++	public function getIconType() {
++		return 'mention';
++	}
++
++	/** @inheritDoc */
++	public function getHeaderMessage() {
++		$msg = $this->msg( 'notification-header-collabpatrol-mention' );
++		$msg->params(
++			$this->getAgentForOutput(),
++			$this->getTruncatedTitleText( $this->event->getTitle(), true ),
++			$this->getViewingUserForGender()
++		);
++		return $msg;
++	}
++
++	/** @inheritDoc */
++	public function getBodyMessage() {
++		$excerpt = $this->event->getExtraParam( 'excerpt' );
++		if ( !is_string( $excerpt ) || $excerpt === '' ) {
++			return false;
++		}
++		$msg = new \RawMessage( '$1' );
++		$msg->plaintextParams( $excerpt );
++		return $msg;
++	}
++
++	/** @inheritDoc */
++	public function getPrimaryLink() {
++		$title = $this->event->getTitle();
++		$revId = (int)$this->event->getExtraParam( 'cp-revid', 0 );
++		if ( !$title || !$revId ) {
++			return false;
++		}
++		return [
++			'url' => $title->getFullURL( [ 'diff' => $revId ] ) . '#cp-chat',
++			'label' => $this->msg( 'collabpatrol-echo-link-discussion' )->text(),
++		];
++	}
++
++	/** @inheritDoc */
++	public function getSecondaryLinks() {
++		$agentLink = $this->getAgentLink();
++		return $agentLink ? [ $agentLink ] : [];
++	}
++}
+diff --git a/resources/ext.collabPatrol.minerva/minerva.js b/resources/ext.collabPatrol.minerva/minerva.js
+index 338a632..37d0da5 100644
+--- a/resources/ext.collabPatrol.minerva/minerva.js
++++ b/resources/ext.collabPatrol.minerva/minerva.js
+@@ -24,7 +24,7 @@
+ 	}
+ 
+ 	function buildChat( revId ) {
+-		$chatPanel = $( '<div>' ).addClass( 'collabpatrol-m-chat' );
++		$chatPanel = $( '<div>' ).addClass( 'collabpatrol-m-chat' ).attr( 'id', 'cp-chat' );
+ 
+ 		var $header = $( '<div>' ).addClass( 'collabpatrol-m-chat-header' );
+ 		var $title = $( '<span>' ).addClass( 'collabpatrol-m-chat-title' )
+@@ -44,7 +44,7 @@
+ 
+ 		$chatPanel.append( $header, $body );
+ 
+-		toggleChat( CP.config.chatOpenDefault );
++		toggleChat( CP.config.chatOpenDefault || window.location.hash === '#cp-chat' );
+ 		loadMessages( revId );
+ 		startRefresh( revId );
+ 
+@@ -127,6 +127,7 @@
+ 			$( '<div>' ).addClass( 'collabpatrol-m-chat-composer-row' ).append( $counter, $btn ),
+ 			$error
+ 		);
++		CP.mentions.attachAutocomplete( $input );
+ 		return $composer;
+ 	}
+ 
+@@ -209,7 +210,10 @@
+ 			.addClass( 'collabpatrol-m-chat-user' ).text( msg.userText );
+ 		var $time = $( '<span>' ).addClass( 'collabpatrol-m-chat-time' ).text( ' · ' + elapsed );
+ 		var $meta = $( '<div>' ).addClass( 'collabpatrol-m-chat-meta' ).append( $user, $time );
+-		var $text = $( '<div>' ).addClass( 'collabpatrol-m-chat-text' ).text( msg.message );
++		var $text = $( '<div>' ).addClass( 'collabpatrol-m-chat-text' );
++		if ( CP.mentions.renderText( $text, msg.message, msg.mentions ) ) {
++			$row.addClass( 'collabpatrol-m-chat-msg-mentioned' );
++		}
+ 
+ 		$row.append( $meta, $text );
+ 
+diff --git a/resources/ext.collabPatrol/chat.js b/resources/ext.collabPatrol/chat.js
+index e6db4d0..bed169a 100644
+--- a/resources/ext.collabPatrol/chat.js
++++ b/resources/ext.collabPatrol/chat.js
+@@ -23,7 +23,7 @@
+ 
+ 
+ 	function buildPanel() {
+-		$chatPanel = $( '<div>' ).addClass( 'cp-chat-panel' ).hide();
++		$chatPanel = $( '<div>' ).addClass( 'cp-chat-panel' ).attr( 'id', 'cp-chat' ).hide();
+ 
+ 		var $header = $( '<div>' ).addClass( 'cp-chat-header' );
+ 		var $title = $( '<span>' ).addClass( 'cp-chat-title' ).text( '💬 ' + mw.msg( 'collabpatrol-chat-title' ) );
+@@ -82,8 +82,9 @@
+ 			}
+ 		}
+ 		$chatPanel.show();
+-		setOpenState( CP.config.chatOpenDefault );
+-		if ( CP.config.chatOpenDefault ) {
++		var openNow = CP.config.chatOpenDefault || window.location.hash === '#cp-chat';
++		setOpenState( openNow );
++		if ( openNow ) {
+ 			loadMessages();
+ 		}
+ 	}
+@@ -178,6 +179,7 @@
+ 		} );
+ 
+ 		$composer.append( $input, $( '<div>' ).addClass( 'cp-chat-composer-row' ).append( $counter, $btn ), $error );
++		CP.mentions.attachAutocomplete( $input );
+ 		return $composer;
+ 	}
+ 
+@@ -260,7 +262,10 @@
+ 		var $time = $( '<span>' ).addClass( 'cp-chat-msg-time' ).text( elapsed );
+ 		$meta.append( $userLink, ' · ', $time );
+ 
+-		var $text = $( '<span>' ).addClass( 'cp-chat-msg-text' ).text( msg.message );
++		var $text = $( '<span>' ).addClass( 'cp-chat-msg-text' );
++		if ( CP.mentions.renderText( $text, msg.message, msg.mentions ) ) {
++			$row.addClass( 'cp-chat-msg-mentioned' );
++		}
+ 
+ 		$row.append( $meta, $text );
+ 
+diff --git a/resources/ext.collabPatrol/mentions.js b/resources/ext.collabPatrol/mentions.js
+new file mode 100644
+index 0000000..5a1038c
+--- /dev/null
++++ b/resources/ext.collabPatrol/mentions.js
+@@ -0,0 +1,205 @@
++( function () {
++	'use strict';
++
++	var CP = window.CollabPatrol;
++	var LETTER = /[A-Za-z0-9_\u00C0-\u024F]/;
++	var PRECEDING = /[A-Za-z0-9_@/\u00C0-\u024F]/;
++
++	/**
++	 * Renders a chat message into $el, turning resolved @mentions into user links.
++	 *
++	 * @param {jQuery} $el Target element (its content is replaced)
++	 * @param {string} text Raw message
++	 * @param {Array} mentions [ { raw: '@Jean', name: 'Jean' }, ... ] as resolved by the server
++	 * @return {boolean} True if the current user is mentioned
++	 */
++	function renderText( $el, text, mentions ) {
++		var selfMentioned = false;
++		$el.empty();
++
++		if ( !mentions || !mentions.length ) {
++			$el.text( text );
++			return false;
++		}
++
++		var byRaw = {};
++		var alternatives = mentions.map( function ( m ) {
++			byRaw[ m.raw ] = m.name;
++			return m.raw;
++		} ).sort( function ( a, b ) {
++			return b.length - a.length;
++		} ).map( function ( raw ) {
++			return mw.util.escapeRegExp( raw );
++		} );
++
++		var re = new RegExp( '(' + alternatives.join( '|' ) + ')', 'g' );
++		var last = 0;
++		var match;
++
++		while ( ( match = re.exec( text ) ) !== null ) {
++			var start = match.index;
++			var end = start + match[ 0 ].length;
++			var before = start > 0 ? text.charAt( start - 1 ) : '';
++			var after = end < text.length ? text.charAt( end ) : '';
++			var bracket = match[ 0 ].charAt( 1 ) === '[';
++
++			if ( ( before && PRECEDING.test( before ) ) || ( !bracket && after && LETTER.test( after ) ) ) {
++				continue;
++			}
++
++			var name = byRaw[ match[ 0 ] ];
++			var isSelf = name === CP.userName;
++			selfMentioned = selfMentioned || isSelf;
++
++			$el.append( document.createTextNode( text.slice( last, start ) ) );
++			$el.append(
++				$( '<a>' )
++					.addClass( 'cp-chat-mention' + ( isSelf ? ' cp-chat-mention-self' : '' ) )
++					.attr( 'href', mw.util.getUrl( 'User:' + name ) )
++					.text( '@' + name )
++			);
++			last = end;
++		}
++
++		$el.append( document.createTextNode( text.slice( last ) ) );
++		return selfMentioned;
++	}
++
++	/**
++	 * Adds @username autocompletion to a textarea.
++	 *
++	 * @param {jQuery} $input
++	 */
++	function attachAutocomplete( $input ) {
++		var api = new mw.Api();
++		var $list = $( '<ul>' ).addClass( 'cp-mention-list' ).attr( 'role', 'listbox' ).hide();
++		var token = null;
++		var items = [];
++		var active = -1;
++		var timer = null;
++		var requestId = 0;
++
++		$input.after( $list );
++
++		function hide() {
++			$list.hide().empty();
++			items = [];
++			active = -1;
++		}
++
++		function setActive( index ) {
++			active = index;
++			$list.children().each( function ( i ) {
++				$( this ).toggleClass( 'cp-mention-active', i === index );
++			} );
++		}
++
++		function currentToken() {
++			var el = $input[ 0 ];
++			var caret = el.selectionStart;
++			if ( typeof caret !== 'number' ) {
++				return null;
++			}
++			var m = /(^|\s|\()@([^\s@[\]]{1,40})$/.exec( el.value.slice( 0, caret ) );
++			if ( !m ) {
++				return null;
++			}
++			return { prefix: m[ 2 ], end: caret, start: caret - m[ 2 ].length - 1 };
++		}
++
++		function choose( name ) {
++			if ( !token ) {
++				return;
++			}
++			var el = $input[ 0 ];
++			var insertion = ( /[^\w\u00C0-\u024F.'-]/.test( name ) ? '@[' + name + ']' : '@' + name ) + ' ';
++			el.value = el.value.slice( 0, token.start ) + insertion + el.value.slice( token.end );
++			var pos = token.start + insertion.length;
++			el.setSelectionRange( pos, pos );
++			hide();
++			$input.trigger( 'input' ).trigger( 'focus' );
++		}
++
++		function show( names ) {
++			$list.empty();
++			items = names;
++			names.forEach( function ( name, i ) {
++				$( '<li>' )
++					.attr( 'role', 'option' )
++					.text( name )
++					.on( 'mousedown', function ( e ) {
++						e.preventDefault();
++						choose( name );
++					} )
++					.on( 'mouseenter', function () {
++						setActive( i );
++					} )
++					.appendTo( $list );
++			} );
++			if ( names.length ) {
++				$list.show();
++				setActive( 0 );
++			} else {
++				hide();
++			}
++		}
++
++		function search() {
++			token = currentToken();
++			if ( !token ) {
++				hide();
++				return;
++			}
++			var id = ++requestId;
++			api.get( {
++				action: 'query',
++				list: 'allusers',
++				auprefix: token.prefix.replace( /_/g, ' ' ),
++				aulimit: 6,
++				formatversion: 2
++			} ).then( function ( data ) {
++				if ( id !== requestId ) {
++					return;
++				}
++				var users = ( data.query && data.query.allusers ) || [];
++				show( users.map( function ( u ) {
++					return u.name;
++				} ) );
++			}, hide );
++		}
++
++		$input.on( 'input click', function () {
++			clearTimeout( timer );
++			timer = setTimeout( search, 200 );
++		} );
++
++		$input.on( 'blur', function () {
++			setTimeout( hide, 150 );
++		} );
++
++		$input.on( 'keydown', function ( e ) {
++			if ( !items.length ) {
++				return;
++			}
++			if ( e.key === 'ArrowDown' ) {
++				e.preventDefault();
++				setActive( ( active + 1 ) % items.length );
++			} else if ( e.key === 'ArrowUp' ) {
++				e.preventDefault();
++				setActive( ( active - 1 + items.length ) % items.length );
++			} else if ( ( e.key === 'Enter' && !e.ctrlKey && !e.metaKey ) || e.key === 'Tab' ) {
++				e.preventDefault();
++				choose( items[ active < 0 ? 0 : active ] );
++			} else if ( e.key === 'Escape' ) {
++				e.preventDefault();
++				hide();
++			}
++		} );
++	}
++
++	CP.mentions = {
++		renderText: renderText,
++		attachAutocomplete: attachAutocomplete
++	};
++
++}() );
+diff --git a/resources/ext.collabPatrol/styles.css b/resources/ext.collabPatrol/styles.css
+index 3856054..cf8c6a8 100644
+--- a/resources/ext.collabPatrol/styles.css
++++ b/resources/ext.collabPatrol/styles.css
+@@ -178,3 +178,51 @@
+ 		justify-content: center;
+ 	}
+ }
++
++.cp-chat-mention {
++	font-weight: bold;
++	color: #36c;
++	background: #eaf0fb;
++	border-radius: 3px;
++	padding: 0 3px;
++	text-decoration: none;
++}
++
++.cp-chat-mention:hover {
++	background: #d9e4f8;
++	text-decoration: none;
++}
++
++.cp-chat-mention-self {
++	background: #fef6e7;
++	color: #7a5d00;
++}
++
++.cp-chat-msg-mentioned,
++.collabpatrol-m-chat-msg-mentioned {
++	border-left: 3px solid #fc3;
++}
++
++.cp-mention-list {
++	list-style: none;
++	margin: 2px 0 0;
++	padding: 2px 0;
++	border: 1px solid #c8d0d8;
++	border-radius: 4px;
++	background: #fff;
++	max-height: 160px;
++	overflow-y: auto;
++}
++
++.cp-mention-list li {
++	margin: 0;
++	padding: 4px 10px;
++	font-size: 13px;
++	cursor: pointer;
++	color: #222;
++}
++
++.cp-mention-list li.cp-mention-active {
++	background: #eaf0fb;
++	color: #36c;
++}

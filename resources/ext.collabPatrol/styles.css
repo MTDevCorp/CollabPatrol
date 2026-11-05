@@ -178,3 +178,51 @@
 		justify-content: center;
 	}
 }
+
+.cp-chat-mention {
+	font-weight: bold;
+	color: #36c;
+	background: #eaf0fb;
+	border-radius: 3px;
+	padding: 0 3px;
+	text-decoration: none;
+}
+
+.cp-chat-mention:hover {
+	background: #d9e4f8;
+	text-decoration: none;
+}
+
+.cp-chat-mention-self {
+	background: #fef6e7;
+	color: #7a5d00;
+}
+
+.cp-chat-msg-mentioned,
+.collabpatrol-m-chat-msg-mentioned {
+	border-left: 3px solid #fc3;
+}
+
+.cp-mention-list {
+	list-style: none;
+	margin: 2px 0 0;
+	padding: 2px 0;
+	border: 1px solid #c8d0d8;
+	border-radius: 4px;
+	background: #fff;
+	max-height: 160px;
+	overflow-y: auto;
+}
+
+.cp-mention-list li {
+	margin: 0;
+	padding: 4px 10px;
+	font-size: 13px;
+	cursor: pointer;
+	color: #222;
+}
+
+.cp-mention-list li.cp-mention-active {
+	background: #eaf0fb;
+	color: #36c;
+}

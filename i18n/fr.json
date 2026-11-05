@@ -59,7 +59,7 @@
 	"collabpatrol-stats-finished": "Terminés (actuel)",
 	"collabpatrol-stats-top-patrollers": "Top patrouilleurs",
 	"collabpatrol-chat-title": "Discussion",
-	"collabpatrol-chat-placeholder": "Écrire un message… (Ctrl+Entrée pour envoyer)",
+	"collabpatrol-chat-placeholder": "Écrire un message… (@ pour mentionner, Ctrl+Entrée pour envoyer)",
 	"collabpatrol-chat-btn-send": "Envoyer",
 	"collabpatrol-chat-btn-delete": "Supprimer le message",
 	"collabpatrol-chat-deleted": "[Message supprimé par un modérateur]",
@@ -88,5 +88,9 @@
 	"collabpatrol-pref-notify-finished": "Afficher une notification après la fin d'une entrée",
 	"collabpatrol-pref-chat-open-default": "Ouvrir la discussion par défaut",
 	"collabpatrol-pref-show-history": "Afficher l'historique des entrées",
-	"collabpatrol-pref-compact-mode": "Utiliser une mise en page compacte"
+	"collabpatrol-pref-compact-mode": "Utiliser une mise en page compacte",
+	"echo-category-title-collabpatrol-mention": "{{PLURAL:$1|Mention dans le chat de patrouille|Mentions dans le chat de patrouille}}",
+	"echo-pref-tooltip-collabpatrol-mention": "Me notifier quand quelqu'un me mentionne dans une discussion de patrouille.",
+	"notification-header-collabpatrol-mention": "$1 vous a mentionné dans la discussion de patrouille sur $2",
+	"collabpatrol-echo-link-discussion": "Voir la discussion"
 }

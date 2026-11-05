@@ -47,7 +47,7 @@ All settings go in `LocalSettings.php`.
 | `$wgCollabPatrolExpirationDelay` | `172800` (48 h) | Seconds before a patrol entry expires automatically |
 | `$wgCollabPatrolUrgencyThreshold` | `3600` (1 h) | Seconds before a pending entry is marked urgent |
 | `$wgCollabPatrolAutoPatrol` | `true` | Automatically mark the revision as patrolled when status is set to *finished* |
-| `$wgCollabPatrolEnableEcho` | `true` | Send Echo notifications when patrol status changes |
+| `$wgCollabPatrolEnableEcho` | `true` | Send Echo notifications when someone is @mentioned in the patrol chat |
 | `$wgCollabPatrolChatEnabled` | `true` | Enable the per-diff discussion panel |
 | `$wgCollabPatrolChatMaxLength` | `500` | Maximum character length for a chat message |
 | `$wgCollabPatrolChatModerators` | `[]` | Optional additional usernames allowed to moderate chat |
@@ -72,6 +72,12 @@ Each user can configure CollabPatrol in `Special:Preferences`, under Appearance 
 | Open discussion panel by default | Disabled | Open chat automatically on active entries |
 | Show history block on entries | Enabled | Display or hide entry history in diff interfaces |
 | Use compact layout for controls | Disabled | Reduce spacing in desktop and mobile controls |
+
+## Mentions and Echo
+
+In the discussion panel, type `@` followed by a username to get suggestions. Mentions are written `@Username` (underscores stand for spaces) or `@[User Name]`. Existing users are highlighted in the message, and messages mentioning you are marked.
+
+If the [Echo](https://www.mediawiki.org/wiki/Extension:Echo) extension is installed and `$wgCollabPatrolEnableEcho` is `true`, every mentioned user who holds the `collabpatrol-use` right receives a notification (up to 5 per message, the author is never notified). The link opens the diff with the discussion panel already open. Users can opt out in `Special:Preferences` > Notifications (category *Patrol chat mentions*). Echo is optional: without it, mentions are still highlighted.
 
 ## How it works
 

@@ -59,7 +59,7 @@
 	"collabpatrol-stats-finished": "Finished (current)",
 	"collabpatrol-stats-top-patrollers": "Top patrollers",
 	"collabpatrol-chat-title": "Discussion",
-	"collabpatrol-chat-placeholder": "Write a message… (Ctrl+Enter to send)",
+	"collabpatrol-chat-placeholder": "Write a message… (@ to mention, Ctrl+Enter to send)",
 	"collabpatrol-chat-btn-send": "Send",
 	"collabpatrol-chat-btn-delete": "Delete message",
 	"collabpatrol-chat-deleted": "[Message deleted by moderator]",
@@ -88,5 +88,9 @@
 	"collabpatrol-pref-notify-finished": "Show notification after finishing an entry",
 	"collabpatrol-pref-chat-open-default": "Open discussion panel by default",
 	"collabpatrol-pref-show-history": "Show history block on entries",
-	"collabpatrol-pref-compact-mode": "Use compact layout for controls"
+	"collabpatrol-pref-compact-mode": "Use compact layout for controls",
+	"echo-category-title-collabpatrol-mention": "{{PLURAL:$1|Patrol chat mention|Patrol chat mentions}}",
+	"echo-pref-tooltip-collabpatrol-mention": "Notify me when someone mentions me in a patrol discussion.",
+	"notification-header-collabpatrol-mention": "$1 mentioned you in the patrol discussion on $2",
+	"collabpatrol-echo-link-discussion": "View the discussion"
 }

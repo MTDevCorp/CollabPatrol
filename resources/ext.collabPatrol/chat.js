@@ -23,7 +23,7 @@
 
 
 	function buildPanel() {
-		$chatPanel = $( '<div>' ).addClass( 'cp-chat-panel' ).hide();
+		$chatPanel = $( '<div>' ).addClass( 'cp-chat-panel' ).attr( 'id', 'cp-chat' ).hide();
 
 		var $header = $( '<div>' ).addClass( 'cp-chat-header' );
 		var $title = $( '<span>' ).addClass( 'cp-chat-title' ).text( '💬 ' + mw.msg( 'collabpatrol-chat-title' ) );
@@ -82,8 +82,9 @@
 			}
 		}
 		$chatPanel.show();
-		setOpenState( CP.config.chatOpenDefault );
-		if ( CP.config.chatOpenDefault ) {
+		var openNow = CP.config.chatOpenDefault || window.location.hash === '#cp-chat';
+		setOpenState( openNow );
+		if ( openNow ) {
 			loadMessages();
 		}
 	}
@@ -178,6 +179,7 @@
 		} );
 
 		$composer.append( $input, $( '<div>' ).addClass( 'cp-chat-composer-row' ).append( $counter, $btn ), $error );
+		CP.mentions.attachAutocomplete( $input );
 		return $composer;
 	}
 
@@ -260,7 +262,10 @@
 		var $time = $( '<span>' ).addClass( 'cp-chat-msg-time' ).text( elapsed );
 		$meta.append( $userLink, ' · ', $time );
 
-		var $text = $( '<span>' ).addClass( 'cp-chat-msg-text' ).text( msg.message );
+		var $text = $( '<span>' ).addClass( 'cp-chat-msg-text' );
+		if ( CP.mentions.renderText( $text, msg.message, msg.mentions ) ) {
+			$row.addClass( 'cp-chat-msg-mentioned' );
+		}
 
 		$row.append( $meta, $text );
 

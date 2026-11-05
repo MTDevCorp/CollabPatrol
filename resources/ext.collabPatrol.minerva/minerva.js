@@ -24,7 +24,7 @@
 	}
 
 	function buildChat( revId ) {
-		$chatPanel = $( '<div>' ).addClass( 'collabpatrol-m-chat' );
+		$chatPanel = $( '<div>' ).addClass( 'collabpatrol-m-chat' ).attr( 'id', 'cp-chat' );
 
 		var $header = $( '<div>' ).addClass( 'collabpatrol-m-chat-header' );
 		var $title = $( '<span>' ).addClass( 'collabpatrol-m-chat-title' )
@@ -44,7 +44,7 @@
 
 		$chatPanel.append( $header, $body );
 
-		toggleChat( CP.config.chatOpenDefault );
+		toggleChat( CP.config.chatOpenDefault || window.location.hash === '#cp-chat' );
 		loadMessages( revId );
 		startRefresh( revId );
 
@@ -127,6 +127,7 @@
 			$( '<div>' ).addClass( 'collabpatrol-m-chat-composer-row' ).append( $counter, $btn ),
 			$error
 		);
+		CP.mentions.attachAutocomplete( $input );
 		return $composer;
 	}
 
@@ -209,7 +210,10 @@
 			.addClass( 'collabpatrol-m-chat-user' ).text( msg.userText );
 		var $time = $( '<span>' ).addClass( 'collabpatrol-m-chat-time' ).text( ' · ' + elapsed );
 		var $meta = $( '<div>' ).addClass( 'collabpatrol-m-chat-meta' ).append( $user, $time );
-		var $text = $( '<div>' ).addClass( 'collabpatrol-m-chat-text' ).text( msg.message );
+		var $text = $( '<div>' ).addClass( 'collabpatrol-m-chat-text' );
+		if ( CP.mentions.renderText( $text, msg.message, msg.mentions ) ) {
+			$row.addClass( 'collabpatrol-m-chat-msg-mentioned' );
+		}
 
 		$row.append( $meta, $text );
 

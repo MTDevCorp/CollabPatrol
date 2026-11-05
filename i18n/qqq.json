@@ -85,5 +85,9 @@
 	"collabpatrol-pref-notify-finished": "Toggle label for showing a notification when an entry is marked finished.",
 	"collabpatrol-pref-chat-open-default": "Toggle label for opening the discussion panel by default on active entries.",
 	"collabpatrol-pref-show-history": "Toggle label for showing the history block under an entry.",
-	"collabpatrol-pref-compact-mode": "Toggle label for using a compact controls layout."
+	"collabpatrol-pref-compact-mode": "Toggle label for using a compact controls layout.",
+	"echo-category-title-collabpatrol-mention": "Echo notification category title. Parameters:\n* $1 - number of notifications",
+	"echo-pref-tooltip-collabpatrol-mention": "Echo preferences tooltip for the CollabPatrol mention category.",
+	"notification-header-collabpatrol-mention": "Echo notification header when a user is @mentioned in a patrol chat. Parameters:\n* $1 - name of the user who mentioned the recipient\n* $2 - title of the page the patrolled revision belongs to",
+	"collabpatrol-echo-link-discussion": "Label of the primary link of the mention notification, opening the diff with the discussion panel."
 }

@@ -270,6 +270,29 @@ class CollabPatrolStore {
 		);
 	}
 
+	/**
+	 * @param string[] $names Normalized user names
+	 * @return int[] Map of existing user name => user ID
+	 */
+	public function getUserIdsByName( array $names ): array {
+		$names = array_values( array_unique( array_map( 'strval', $names ) ) );
+		if ( !$names ) {
+			return [];
+		}
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			'user',
+			[ 'user_id', 'user_name' ],
+			[ 'user_name' => $names ],
+			__METHOD__
+		);
+		$ids = [];
+		foreach ( $res as $row ) {
+			$ids[$row->user_name] = (int)$row->user_id;
+		}
+		return $ids;
+	}
+
 	public function getChatMessage( int $msgId ): ?array {
 		$db = $this->lb->getConnection( DB_REPLICA );
 		$row = $db->selectRow(
