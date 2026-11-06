@@ -1,228 +1,677 @@
+/* CollabPatrol — styles principaux (design OOUI discret)
+
+ * Les variables --color-* / --border-color-* de MediaWiki sont utilisées quand elles existent
+
+ * (thème sombre inclus), avec des valeurs OOUI en repli. */
+
+
 .collabpatrol-wrapper {
+
+	--cp-border: var( --border-color-subtle, #c8ccd1 );
+
+	--cp-surface: var( --background-color-neutral-subtle, #f8f9fa );
+
+	--cp-text: var( --color-base, #202122 );
+
+	--cp-muted: var( --color-subtle, #54595d );
+
+
 	display: flex;
+
 	align-items: center;
+
 	gap: 8px;
-	margin: 10px 0;
-	padding: 6px 8px;
+
+	margin: 12px 0;
+
+	padding: 8px 12px;
+
 	flex-wrap: wrap;
+
 	clear: both;
-	background: #f8f9fa;
-	border-radius: 6px;
-	border: 1px solid #e9ecef;
+
+	background: var( --cp-surface );
+
+	border: 1px solid var( --cp-border );
+
+	border-left: 4px solid var( --cp-accent, #36c );
+
+	border-radius: 2px;
+
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+
+	color: var( --cp-text );
+
 }
+
 
 .collabpatrol-wrapper-compact {
-	padding: 4px 6px;
+
+	padding: 4px 8px;
+
 	gap: 6px;
+
+	margin: 8px 0;
+
 }
 
-.collabpatrol-badge {
-	padding: 4px 10px;
-	border-radius: 20px;
-	font-weight: bold;
-	font-size: 13px;
-	display: inline-block;
+
+/* Couleur d'accent selon l'état, posée par ui.js via une classe sur le wrapper */
+
+.collabpatrol-wrapper-pending { --cp-accent: #fc3; }
+
+.collabpatrol-wrapper-progress { --cp-accent: #36c; }
+
+.collabpatrol-wrapper-finished { --cp-accent: #14866d; }
+
+.collabpatrol-wrapper-urgent {
+	--cp-accent: #d33;
+	background: var( --background-color-error-subtle, #fee7e6 );
 }
 
-.collabpatrol-badge-pending {
-	background-color: #fff3cd;
-	color: #856404;
-	border: 1px solid #ffeeba;
-}
-
-.collabpatrol-badge-progress {
-	background-color: #d1ecf1;
-	color: #0c5460;
-	border: 1px solid #bee5eb;
-}
-
-.collabpatrol-badge-finished {
-	background-color: #d4edda;
-	color: #155724;
-	border: 1px solid #c3e6cb;
-}
-
-.collabpatrol-badge-urgent {
-	background-color: #f8d7da;
-	color: #721c24;
-	border: 1px solid #f5c6cb;
-	animation: collabpatrol-pulse 2s infinite;
-}
-
-@keyframes collabpatrol-pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.65; }
-}
-
-.collabpatrol-btn {
-	border: none;
-	padding: 5px 12px;
-	border-radius: 4px;
-	color: #fff;
-	cursor: pointer;
-	font-size: 13px;
-	font-weight: bold;
-	transition: opacity 0.15s;
-	text-decoration: none;
-	display: inline-block;
-}
-
-.collabpatrol-btn:hover {
-	opacity: 0.85;
-}
-
-.collabpatrol-btn-green { background-color: #28a745; }
-.collabpatrol-btn-grey { background-color: #6c757d; }
-.collabpatrol-btn-red { background-color: #dc3545; }
-
-.collabpatrol-btn-yellow {
-	background-color: #ffc107;
-	color: #212529;
-}
-
-.collabpatrol-history {
-	margin-top: 6px;
-	padding: 8px 10px;
-	background: #f1f3f4;
-	border-radius: 4px;
-	font-size: 12px;
-	color: #555;
-	width: 100%;
-}
-
-.collabpatrol-wrapper-compact .collabpatrol-history {
-	margin-top: 4px;
-	padding: 6px 8px;
-	font-size: 11px;
-}
-
-.collabpatrol-history-item {
-	margin: 2px 0;
-}
-
-.collabpatrol-rc-dot {
-	font-size: 1.1em;
-	margin-right: 3px;
+/* Boutons OOUI alignés sur une même ligne que le statut */
+.collabpatrol-wrapper > .oo-ui-buttonElement {
+	flex: 0 0 auto;
+	margin: 0;
 	vertical-align: middle;
 }
 
-.collabpatrol-rc-dot-pending { color: #ff9800; }
-.collabpatrol-rc-dot-progress { color: #36c; }
 
-.collabpatrol-rc-counter {
+/* Statut : OO.ui.MessageWidget (couleurs et icônes fournies par OOUI) */
+
+.collabpatrol-wrapper > .collabpatrol-badge.oo-ui-messageWidget {
+	/* Le statut prend la place restante sur la ligne, les boutons gardent leur taille */
+	flex: 1 1 200px;
+	min-width: 0;
+}
+
+/* Statut compact : icône + texte centrés verticalement, sans cadre ni gros padding */
+.collabpatrol-badge.oo-ui-messageWidget.oo-ui-iconElement.oo-ui-labelElement {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	padding: 6px 14px;
-	margin-top: 6px;
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 5px;
-	font-size: 13px;
-	font-weight: bold;
+	margin: 0;
+	padding: 0;
+	min-height: 0;
+	max-width: 100%;
+	background: none;
+	border: 0;
 }
 
-.collabpatrol-rc-counter-pending { color: #856404; }
-.collabpatrol-rc-counter-progress { color: #0c5460; }
+.collabpatrol-badge.oo-ui-messageWidget.oo-ui-iconElement.oo-ui-labelElement > .oo-ui-iconElement-icon {
+	position: static;
+	flex: 0 0 auto;
+	width: 20px;
+	min-width: 20px;
+	height: 20px;
+	margin: 0;
+}
+
+.collabpatrol-badge.oo-ui-messageWidget.oo-ui-iconElement.oo-ui-labelElement > .oo-ui-labelElement-label {
+	display: block;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	line-height: 1.4;
+}
+
+
+.collabpatrol-badge-urgent {
+
+	animation: collabpatrol-pulse 2s infinite;
+
+}
+
+
+@keyframes collabpatrol-pulse {
+
+	0%, 100% { opacity: 1; }
+
+	50% { opacity: 0.7; }
+
+}
+
+
+@media ( prefers-reduced-motion: reduce ) {
+
+	.collabpatrol-badge-urgent { animation: none; }
+
+}
+
+
+/* Texte secondaire de la pastille (durée écoulée) */
+
+.collabpatrol-badge-time {
+
+	font-weight: 400;
+
+	opacity: 0.8;
+
+}
+
+
+/* Boutons natifs restants (envoi du chat) : aspect OOUI "progressive" */
+
+.collabpatrol-btn {
+
+	display: inline-block;
+
+	box-sizing: border-box;
+
+	min-height: 32px;
+
+	padding: 5px 12px;
+
+	border: 1px solid #36c;
+
+	border-radius: 2px;
+
+	background-color: #36c;
+
+	color: #fff;
+
+	font-family: inherit;
+
+	font-size: 1em;
+
+	font-weight: 700;
+
+	line-height: 1.4;
+
+	cursor: pointer;
+
+	text-decoration: none;
+
+	transition: background-color 0.1s, border-color 0.1s;
+
+}
+
+
+.collabpatrol-btn:hover {
+
+	background-color: #447ff5;
+
+	border-color: #447ff5;
+
+	color: #fff;
+
+}
+
+
+.collabpatrol-btn:active {
+
+	background-color: #2a4b8d;
+
+	border-color: #2a4b8d;
+
+}
+
+
+.collabpatrol-btn:disabled {
+
+	background-color: #c8ccd1;
+
+	border-color: #c8ccd1;
+
+	color: #fff;
+
+	cursor: default;
+
+}
+
+
+.collabpatrol-btn:focus-visible {
+
+	outline: 0;
+
+	box-shadow: inset 0 0 0 1px #fff, 0 0 0 2px #36c;
+
+}
+
+
+/* Historique */
+
+.collabpatrol-history {
+
+	margin-top: 4px;
+
+	padding: 8px 12px;
+
+	background: var( --background-color-base, #fff );
+
+	border: 1px solid var( --border-color-subtle, #eaecf0 );
+
+	border-radius: 2px;
+
+	font-size: 0.8125em;
+
+	color: var( --color-subtle, #54595d );
+
+	width: 100%;
+
+	box-sizing: border-box;
+
+}
+
+
+.collabpatrol-wrapper-compact .collabpatrol-history {
+
+	padding: 6px 8px;
+
+	font-size: 0.75em;
+
+}
+
+
+.collabpatrol-history-item {
+
+	margin: 3px 0;
+
+	padding-left: 10px;
+
+	border-left: 2px solid var( --border-color-subtle, #eaecf0 );
+
+}
+
+
+/* Pastilles de la liste des modifications récentes */
+
+.collabpatrol-rc-dot {
+
+	font-size: 1.1em;
+
+	margin-right: 3px;
+
+	vertical-align: middle;
+
+}
+
+
+.collabpatrol-rc-dot-pending { color: #fc3; }
+
+.collabpatrol-rc-dot-progress { color: #36c; }
+
+
+/* Compteur de la page Modifications récentes */
+
+.collabpatrol-rc-counter {
+
+	display: inline-flex;
+
+	align-items: center;
+
+	flex-wrap: wrap;
+
+	gap: 8px 14px;
+
+	padding: 6px 12px;
+
+	margin-top: 8px;
+
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+
+	border: 1px solid var( --border-color-subtle, #c8ccd1 );
+
+	border-radius: 2px;
+
+	font-size: 0.875em;
+
+}
+
+
+.collabpatrol-rc-counter-pending,
+
+.collabpatrol-rc-counter-progress {
+
+	display: inline-flex;
+
+	align-items: center;
+
+	gap: 6px;
+
+	font-weight: 600;
+
+}
+
+
+.collabpatrol-rc-counter-pending { color: #7a5d00; }
+
+.collabpatrol-rc-counter-progress { color: #2a4b8d; }
+
 
 .collabpatrol-rc-dash-link {
-	margin-left: 8px;
-	font-weight: normal;
-	font-size: 12px;
+
+	margin-left: 4px;
+
+	font-weight: 400;
+
 }
+
+
+/* Tableau de bord (utilisé aussi par special.js) */
 
 .collabpatrol-dash-toolbar {
+
 	display: flex;
+
 	align-items: center;
-	gap: 10px;
-	margin-bottom: 14px;
+
+	flex-wrap: wrap;
+
+	gap: 8px;
+
+	margin-bottom: 16px;
+
 }
 
-.collabpatrol-dash-table td,
+
+.collabpatrol-dash-toolbar .oo-ui-dropdownWidget {
+
+	min-width: 200px;
+
+	margin: 0;
+
+}
+
+
+.collabpatrol-dash-table {
+
+	width: 100%;
+
+	border-collapse: collapse;
+
+}
+
+
 .collabpatrol-dash-table th {
-	padding: 8px 10px;
+
+	text-align: left;
+
+	white-space: nowrap;
+
+}
+
+
+.collabpatrol-dash-table td,
+
+.collabpatrol-dash-table th {
+
+	padding: 8px 12px;
+
+	vertical-align: middle;
+
+}
+
+
+/* Bureau : pas de défilement horizontal, le tableau s'adapte à la largeur disponible.
+ * (Minerva réactive le défilement dans special.css.) */
+.collabpatrol-dash-tablewrap {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+}
+
+.collabpatrol-dash-table .collabpatrol-badge {
+	white-space: nowrap;
+}
+
+.collabpatrol-dash-table td:nth-child( 4 ) {
+	overflow-wrap: break-word;
+}
+
+/* Dernière colonne : la cellule prend la largeur de ses boutons, qui restent sur UNE ligne */
+.collabpatrol-dash-table th:last-child,
+.collabpatrol-dash-actions {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.collabpatrol-dash-actions-inner {
+	display: inline-flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.collabpatrol-dash-actions .oo-ui-buttonElement {
+	flex: 0 0 auto;
+	margin: 0;
 	vertical-align: middle;
 }
 
-.collabpatrol-dash-actions {
+.collabpatrol-dash-actions .oo-ui-buttonElement-button,
+.collabpatrol-dash-actions .oo-ui-labelElement-label {
 	white-space: nowrap;
 }
 
 .collabpatrol-dash-row-urgent {
-	background-color: #fff5f5;
+
+	background-color: #fee7e6;
+
+	box-shadow: inset 3px 0 0 #d33;
+
 }
+
+
+.collabpatrol-dash-age-urgent {
+
+	color: #a1261b;
+
+	font-weight: 700;
+
+}
+
+
+.collabpatrol-dash-empty {
+
+	padding: 24px;
+
+	text-align: center;
+
+	color: var( --color-subtle, #72777d );
+
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+
+	border: 1px dashed var( --border-color-base, #c8ccd1 );
+
+	border-radius: 2px;
+
+}
+
+
+/* Statistiques */
 
 .collabpatrol-stats {
-	max-width: 600px;
+
+	max-width: 640px;
+
 }
+
 
 .collabpatrol-stats-link {
+
 	text-align: right;
-	font-size: 13px;
+
+	font-size: 0.875em;
+
 }
 
-@media screen and (max-width: 720px) {
+
+.collabpatrol-stats-cards {
+
+	display: flex;
+
+	flex-wrap: wrap;
+
+	gap: 10px;
+
+	margin: 12px 0 20px;
+
+}
+
+
+.collabpatrol-stats-card {
+
+	flex: 1 1 120px;
+
+	padding: 10px 14px;
+
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+
+	border: 1px solid var( --border-color-subtle, #c8ccd1 );
+
+	border-top: 3px solid var( --cp-accent, #36c );
+
+	border-radius: 2px;
+
+}
+
+
+.collabpatrol-stats-card-value {
+
+	font-size: 1.75em;
+
+	font-weight: 700;
+
+	line-height: 1.2;
+
+}
+
+
+.collabpatrol-stats-card-label {
+
+	font-size: 0.8125em;
+
+	color: var( --color-subtle, #54595d );
+
+}
+
+
+.collabpatrol-stats-card-total { --cp-accent: #72777d; }
+
+.collabpatrol-stats-card-pending { --cp-accent: #fc3; }
+
+.collabpatrol-stats-card-progress { --cp-accent: #36c; }
+
+.collabpatrol-stats-card-finished { --cp-accent: #14866d; }
+
+
+@media screen and ( max-width: 720px ) {
+
 	.collabpatrol-wrapper {
-		justify-content: center;
+
+		justify-content: flex-start;
+
 	}
 
-	.collabpatrol-btn {
-		flex-grow: 1;
-		text-align: center;
-	}
 
 	.collabpatrol-rc-counter {
+
 		display: flex;
-		flex-wrap: wrap;
-		margin: 8px auto;
-		justify-content: center;
+
+		margin: 8px 0;
+
 	}
+
 }
+
+
+/* Mentions */
 
 .cp-chat-mention {
-	font-weight: bold;
+
+	font-weight: 600;
+
 	color: #36c;
-	background: #eaf0fb;
-	border-radius: 3px;
+
+	background: #eaf3ff;
+
+	border-radius: 2px;
+
 	padding: 0 3px;
+
 	text-decoration: none;
+
 }
+
 
 .cp-chat-mention:hover {
-	background: #d9e4f8;
+
+	background: #d8e6ff;
+
 	text-decoration: none;
+
 }
+
 
 .cp-chat-mention-self {
+
 	background: #fef6e7;
+
 	color: #7a5d00;
+
 }
+
 
 .cp-chat-msg-mentioned,
+
 .collabpatrol-m-chat-msg-mentioned {
+
 	border-left: 3px solid #fc3;
+
 }
+
+
+/* Liste d'autocomplétion des mentions */
 
 .cp-mention-list {
+
 	list-style: none;
+
 	margin: 2px 0 0;
+
 	padding: 2px 0;
-	border: 1px solid #c8d0d8;
-	border-radius: 4px;
-	background: #fff;
+
+	border: 1px solid #a2a9b1;
+
+	border-radius: 2px;
+
+	background: var( --background-color-base, #fff );
+
+	box-shadow: 0 2px 2px 0 rgba( 0, 0, 0, 0.2 );
+
 	max-height: 160px;
+
 	overflow-y: auto;
+
 }
+
 
 .cp-mention-list li {
+
 	margin: 0;
-	padding: 4px 10px;
-	font-size: 13px;
+
+	padding: 6px 12px;
+
+	font-size: 0.875em;
+
 	cursor: pointer;
-	color: #222;
+
+	color: var( --color-base, #202122 );
+
 }
 
+
 .cp-mention-list li.cp-mention-active {
-	background: #eaf0fb;
+
+	background: #eaf3ff;
+
 	color: #36c;
+
 }
+
+
+
+
+
+

@@ -1,3 +1,109 @@
+/* CollabPatrol — tableau de bord (design OOUI discret) */
+
 #collabpatrol-dashboard {
 	padding: 4px 0;
 }
+
+/* Le tableau est un .wikitable : on l'adoucit sans le remplacer */
+#collabpatrol-dashboard .collabpatrol-dash-table {
+	border-radius: 2px;
+	/* pas d'overflow:hidden ici : il bloquait le défilement horizontal sous Minerva */
+}
+
+#collabpatrol-dashboard .collabpatrol-dash-table th {
+	background: var( --background-color-neutral, #eaecf0 );
+	font-size: 0.8125em;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var( --color-subtle, #54595d );
+}
+
+#collabpatrol-dashboard .collabpatrol-dash-table tbody tr:hover {
+	background-color: #eaf3ff;
+}
+
+#collabpatrol-dashboard .collabpatrol-dash-table tbody tr.collabpatrol-dash-row-urgent:hover {
+	background-color: #fddcda;
+}
+
+/* Bouton « Bannir » : lien stylé comme un bouton destructif OOUI */
+a.collabpatrol-btn,
+a.collabpatrol-btn:hover {
+	color: #fff;
+	text-decoration: none;
+}
+
+.collabpatrol-btn-red {
+	background-color: #d33;
+	border-color: #d33;
+}
+
+.collabpatrol-btn-red:hover {
+	background-color: #ff4242;
+	border-color: #ff4242;
+}
+
+.collabpatrol-btn-red:active {
+	background-color: #b32424;
+	border-color: #b32424;
+}
+
+#collabpatrol-dashboard .collabpatrol-btn-red {
+	min-height: 32px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	vertical-align: middle;
+}
+
+.collabpatrol-dash-toolbar .oo-ui-buttonElement {
+	margin: 0;
+}
+
+
+
+/* Minerva : le contenu est étroit et force parfois les tableaux en display:block.
+ * On garde un vrai tableau, d'une largeur minimale, dans un conteneur qui défile. */
+.skin-minerva #collabpatrol-dashboard {
+	max-width: 100%;
+	min-width: 0;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-tablewrap {
+	display: block;
+	width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table {
+	display: table;
+	width: 100%;
+	min-width: 620px;
+	overflow: visible;
+	margin: 0;
+}
+
+.skin-minerva .collabpatrol-dash-toolbar {
+	margin-bottom: 12px;
+}
+
+/* Minerva : la colonne « Note » garde une largeur lisible (pas de coupure mot à mot),
+ * c'est le conteneur qui défile horizontalement si l'écran est trop étroit. */
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table {
+	width: max-content;
+	min-width: 100%;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table td:nth-child( 4 ) {
+	min-width: 14em;
+	max-width: 22em;
+	white-space: normal;
+	overflow-wrap: break-word;
+	word-break: normal;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table th,
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table td:not( :nth-child( 4 ) ) {
+	white-space: nowrap;
+}
+
