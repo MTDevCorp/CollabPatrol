@@ -1,10 +1,12 @@
+/* CollabPatrol — panneau de discussion (design OOUI discret) */
 
 .cp-chat-panel {
-	margin: 6px 0 10px;
-	border: 1px solid #c8d0d8;
-	border-radius: 6px;
-	background: #fff;
-	font-size: 13px;
+	margin: 8px 0 12px;
+	border: 1px solid var( --border-color-subtle, #c8ccd1 );
+	border-radius: 2px;
+	background: var( --background-color-base, #fff );
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+	font-size: 0.875em;
 	overflow: hidden;
 	clear: both;
 }
@@ -13,39 +15,47 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 7px 12px;
-	background: #f1f6fb;
-	border-bottom: 1px solid #c8d0d8;
-	cursor: default;
+	padding: 6px 12px;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	border-bottom: 1px solid var( --border-color-subtle, #c8ccd1 );
 }
 
 .cp-chat-title {
-	font-weight: bold;
-	color: #36c;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	flex: 1;
+	font-weight: 700;
+	color: var( --color-base, #202122 );
+}
+
+.cp-chat-title .oo-ui-iconWidget {
+	min-width: 18px;
+	width: 18px;
+	min-height: 18px;
+	height: 18px;
+	background-size: 16px 16px;
+	opacity: 0.8;
 }
 
 .cp-chat-count {
-	font-size: 11px;
-	color: #666;
-	background: #e8eef7;
+	font-size: 0.8125em;
+	font-weight: 600;
+	color: #2a4b8d;
+	background: #eaf3ff;
 	border-radius: 10px;
-	padding: 1px 7px;
+	padding: 1px 8px;
 }
 
+.cp-chat-count:empty {
+	display: none;
+}
+
+/* Bouton d'ouverture / fermeture : OOUI dessine déjà le cadre du bouton interne,
+ * on ne stylise donc pas ce conteneur (sinon double rectangle). */
 .cp-chat-toggle {
-	border: 1px solid #a2b9d1;
-	background: #fff;
-	color: #36c;
-	border-radius: 4px;
-	padding: 3px 9px;
-	font-size: 12px;
-	cursor: pointer;
-	transition: background 0.15s;
-}
-
-.cp-chat-toggle:hover {
-	background: #eaf0fb;
+	flex: 0 0 auto;
+	margin: 0;
 }
 
 .cp-chat-body {
@@ -53,9 +63,9 @@
 }
 
 .cp-chat-messages {
-	max-height: 260px;
+	max-height: 280px;
 	overflow-y: auto;
-	padding: 8px 12px;
+	padding: 10px 12px;
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
@@ -66,149 +76,160 @@
 	flex-direction: column;
 	gap: 2px;
 	position: relative;
-	padding: 5px 8px;
-	border-radius: 5px;
-	background: #f8f9fa;
-	border: 1px solid #e9ecef;
+	padding: 6px 10px;
+	border-radius: 2px;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	border: 1px solid var( --border-color-subtle, #eaecf0 );
+	border-left: 3px solid var( --border-color-base, #c8ccd1 );
+	transition: background-color 0.1s;
 }
 
 .cp-chat-msg:hover {
-	background: #f0f4fb;
+	background: #eaf3ff;
+	border-left-color: #36c;
 }
 
 .cp-chat-msg-deleted {
-	background: #f9f0f0;
-	border-color: #f5c6cb;
-	color: #999;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	border-style: dashed;
+	border-left-width: 1px;
+	color: var( --color-subtle, #72777d );
 	font-style: italic;
 }
 
+.cp-chat-msg-deleted:hover {
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	border-left-color: var( --border-color-base, #c8ccd1 );
+}
+
 .cp-chat-msg-meta {
-	font-size: 11px;
-	color: #666;
+	font-size: 0.8125em;
+	color: var( --color-subtle, #54595d );
 }
 
 .cp-chat-msg-user {
-	font-weight: bold;
-	color: #333;
+	font-weight: 700;
 }
 
 .cp-chat-msg-time {
-	color: #aaa;
-	margin-left: 3px;
+	color: var( --color-subtle, #72777d );
+	margin-left: 2px;
 }
 
 .cp-chat-msg-text {
-	color: #222;
+	color: var( --color-base, #202122 );
 	word-break: break-word;
-	line-height: 1.45;
+	line-height: 1.5;
 }
 
+/* Boutons d'action sur un message (supprimer / bannir) */
 .cp-chat-btn-delete {
 	position: absolute;
 	top: 4px;
 	right: 6px;
-	border: none;
-	background: transparent;
-	color: #bbb;
-	cursor: pointer;
-	font-size: 11px;
-	padding: 2px 4px;
-	border-radius: 3px;
 	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	background: transparent;
+	color: var( --color-subtle, #72777d );
+	font-size: 0.8125em;
 	line-height: 1;
+	cursor: pointer;
+	transition: background-color 0.1s, color 0.1s;
 }
 
-.cp-chat-msg:hover .cp-chat-btn-delete {
-	display: block;
+.cp-chat-msg:hover .cp-chat-btn-delete,
+.cp-chat-btn-delete:focus-visible {
+	display: inline-flex;
 }
 
 .cp-chat-btn-delete:hover {
-	background: #f8d7da;
-	color: #721c24;
+	background: #fee7e6;
+	border-color: #f4a7a1;
+	color: #a1261b;
 }
 
 .cp-chat-btn-ban {
-	right: 28px;
-	color: #a97800;
+	right: 32px;
+	color: #7a5d00;
 }
 
 .cp-chat-btn-ban:hover {
-	background: #fff3cd;
+	background: #fef6e7;
+	border-color: #fc3;
 	color: #7a5d00;
 }
 
 .cp-chat-empty {
-	color: #aaa;
+	color: var( --color-subtle, #72777d );
 	text-align: center;
 	font-style: italic;
-	margin: 10px 0;
+	margin: 12px 0;
 }
 
+/* Zone de saisie */
 .cp-chat-composer {
-	padding: 8px 12px;
-	border-top: 1px solid #e9ecef;
-	background: #fafbfc;
+	padding: 10px 12px;
+	border-top: 1px solid var( --border-color-subtle, #c8ccd1 );
+	background: var( --background-color-neutral-subtle, #f8f9fa );
 	display: flex;
 	flex-direction: column;
-	gap: 5px;
+	gap: 6px;
 }
 
+/* Champ de saisie : seul le <textarea> OOUI porte le cadre (pas de double bordure) */
 .cp-chat-input {
 	width: 100%;
-	box-sizing: border-box;
-	border: 1px solid #c8d0d8;
-	border-radius: 4px;
-	padding: 5px 8px;
-	font-size: 13px;
-	resize: vertical;
-	font-family: inherit;
-	line-height: 1.4;
-	color: #222;
-	background: #fff;
-	transition: border-color 0.15s;
-}
-
-.cp-chat-input:focus {
-	outline: none;
-	border-color: #36c;
-	box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
+	max-width: none;
+	margin: 0;
 }
 
 .cp-chat-composer-row {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 	justify-content: flex-end;
 }
 
 .cp-chat-char-counter {
-	font-size: 11px;
-	color: #aaa;
+	font-size: 0.8125em;
+	color: var( --color-subtle, #72777d );
 }
 
 .cp-chat-char-counter-over {
-	color: #dc3545;
-	font-weight: bold;
+	color: #d33;
+	font-weight: 700;
 }
 
 .cp-chat-send {
-	padding: 4px 14px;
-	font-size: 13px;
+	margin: 0;
 }
 
 .cp-chat-error {
-	color: #dc3545;
-	font-size: 12px;
-	font-style: italic;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	background: #fee7e6;
+	border: 1px solid #f4a7a1;
+	border-radius: 2px;
+	color: #a1261b;
+	font-size: 0.8125em;
 }
 
-@media screen and (max-width: 720px) {
+@media screen and ( max-width: 720px ) {
 	.cp-chat-messages {
-		max-height: 200px;
+		max-height: 220px;
 	}
 
 	.cp-chat-btn-delete {
-		display: block;
+		display: inline-flex;
 	}
 }
+
+

@@ -16,24 +16,25 @@
 	var isAdmin = $dashboard.data( 'is-admin' ) === 1 || $dashboard.data( 'is-admin' ) === '1';
 	var currentFilter = 'all';
 
-	function createBtn( label, cls, onClick ) {
-		return $( '<button>' )
-			.addClass( 'collabpatrol-btn collabpatrol-btn-' + cls )
-			.text( label )
-			.on( 'click', onClick );
+	function createBtn( label, cls, onClick, icon ) {
+		var flagsByColor = {
+			green: [ 'primary', 'progressive' ],
+			yellow: [ 'progressive' ],
+			red: [ 'destructive' ],
+			grey: []
+		};
+		var button = new OO.ui.ButtonWidget( {
+			label: label,
+			icon: icon,
+			flags: flagsByColor[ cls ] || [],
+			framed: true
+		} );
+		button.on( 'click', onClick );
+		return button.$element.addClass( 'collabpatrol-btn-widget collabpatrol-btn-widget-' + cls );
 	}
 
-	function buildStatusBadge( status ) {
-		var label = CP.getStatusLabel( status );
-		var cls = 'collabpatrol-badge ';
-		if ( status === 'pending' ) {
-			cls += 'collabpatrol-badge-pending';
-		} else if ( status === 'in_progress' ) {
-			cls += 'collabpatrol-badge-progress';
-		} else {
-			cls += 'collabpatrol-badge-finished';
-		}
-		return $( '<span>' ).addClass( cls ).text( label );
+	function buildStatusBadge( status, urgent ) {
+		return CP.buildStatusWidget( status, urgent, CP.getStatusLabel( status ), true );
 	}
 
 	function renderDashboard( entries ) {
@@ -60,14 +61,18 @@
 
 		toolbar.append( filterSelect.$element );
 		toolbar.append(
-			createBtn( '↺ ' + mw.msg( 'collabpatrol-dashboard-filter-all' ), 'grey', function () {
-				loadAndRender();
-			} )
+			new OO.ui.ButtonWidget( {
+				icon: 'reload',
+				title: mw.msg( 'collabpatrol-dashboard-refresh' ),
+				invisibleLabel: true,
+				label: mw.msg( 'collabpatrol-dashboard-refresh' ),
+				framed: true
+			} ).on( 'click', loadAndRender ).$element
 		);
 		$dashboard.append( toolbar );
 
 		if ( !entries.length ) {
-			$dashboard.append( $( '<p>' ).text( '–' ) );
+			$dashboard.append( $( '<div>' ).addClass( 'collabpatrol-dash-empty' ).text( '–' ) );
 			return;
 		}
 
@@ -99,7 +104,7 @@
 			tr.append(
 				$( '<td>' ).append( $( '<a>' ).attr( { href: diffUrl, target: '_blank' } ).text( entry.revId ) )
 			);
-			tr.append( $( '<td>' ).append( buildStatusBadge( entry.status ) ) );
+			tr.append( $( '<td>' ).append( buildStatusBadge( entry.status, isUrgent ) ) );
 
 			var userLink = $( '<a>' )
 				.attr( 'href', mw.util.getUrl( 'User:' + entry.userText ) )
@@ -110,49 +115,41 @@
 
 			var ageCell = $( '<td>' ).text( CP.formatTimeElapsed( elapsed ) );
 			if ( isUrgent ) {
-				ageCell.css( 'color', '#721c24' ).css( 'font-weight', 'bold' );
+				ageCell.addClass( 'collabpatrol-dash-age-urgent' );
 			}
 			tr.append( ageCell );
 
-			var actions = $( '<td>' ).addClass( 'collabpatrol-dash-actions' );
+			var actionsCell = $( '<td>' ).addClass( 'collabpatrol-dash-actions' );
+			var actions = $( '<div>' ).addClass( 'collabpatrol-dash-actions-inner' );
+			actionsCell.append( actions );
 
 			( function ( e ) {
 				if ( e.status === 'pending' ) {
 					actions.append( createBtn( mw.msg( 'collabpatrol-btn-take' ), 'green', function () {
 						CP.api.setStatus( e.revId, 'in_progress', e.comment ).then( loadAndRender );
-					} ) );
+					}, 'userAvatar' ) );
 				} else if ( e.status === 'in_progress' ) {
 					actions.append( createBtn( mw.msg( 'collabpatrol-btn-finish' ), 'green', function () {
 						CP.api.setStatus( e.revId, 'finished', e.comment ).then( loadAndRender );
-					} ) );
+					}, 'check' ) );
 				}
 
 				if ( isAdmin ) {
-					actions.append( ' ' );
-					actions.append( createBtn( '✕', 'grey', function () {
+					actions.append( createBtn( '', 'grey', function () {
 						if ( !window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
 							return;
 						}
 						CP.api.removeEntry( e.revId ).then( loadAndRender );
-					} ) );
-
-					actions.append( ' ' );
-					var blockUrl = mw.util.getUrl( 'Special:Block/' + e.userText );
-					actions.append(
-						$( '<a>' )
-							.addClass( 'collabpatrol-btn collabpatrol-btn-red' )
-							.attr( { href: blockUrl, target: '_blank' } )
-							.text( mw.msg( 'collabpatrol-btn-ban' ) )
-					);
+					}, 'close' ).attr( 'title', mw.msg( 'collabpatrol-btn-cancel' ) ) );
 				}
 			}( entry ) );
 
-			tr.append( actions );
+			tr.append( actionsCell );
 			tbody.append( tr );
 		} );
 
 		table.append( tbody );
-		$dashboard.append( table );
+		$dashboard.append( $( '<div>' ).addClass( 'collabpatrol-dash-tablewrap' ).append( table ) );
 	}
 
 	function loadAndRender() {
@@ -168,3 +165,7 @@
 	}
 
 }() );
+
+
+
+

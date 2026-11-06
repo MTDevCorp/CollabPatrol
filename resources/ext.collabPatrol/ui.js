@@ -65,23 +65,17 @@
 		var elapsed = CP.now() - entry.timestamp * 1000;
 		var isUrgent = entry.status === 'pending' && elapsed > CP.config.urgencyThreshold;
 
-		var cssClass = 'collabpatrol-badge ';
-		if ( entry.status === 'pending' ) {
-			cssClass += isUrgent ? 'collabpatrol-badge-urgent' : 'collabpatrol-badge-pending';
-		} else if ( entry.status === 'in_progress' ) {
-			cssClass += 'collabpatrol-badge-progress';
-		} else {
-			cssClass += 'collabpatrol-badge-finished';
-		}
-
-		var label = CP.getStatusLabel( entry.status );
-		var text = label + ' — ' + entry.userText;
+		var text = CP.getStatusLabel( entry.status ) + ' — ' + entry.userText;
 		if ( entry.comment ) {
 			text += ' (' + entry.comment + ')';
 		}
-		text += ' • ' + CP.formatTimeElapsed( elapsed );
 
-		return $( '<span>' ).addClass( cssClass ).text( text );
+		var $label = $( '<span>' ).append(
+			$( '<strong>' ).text( text ),
+			$( '<span>' ).addClass( 'collabpatrol-badge-time' ).text( ' • ' + CP.formatTimeElapsed( elapsed ) )
+		);
+
+		return CP.buildStatusWidget( entry.status, isUrgent, $label, true );
 	}
 
 	function buildHistoryBlock( history ) {
@@ -103,11 +97,21 @@
 		return div;
 	}
 
-	function createBtn( label, cls, onClick ) {
-		return $( '<button>' )
-			.addClass( 'collabpatrol-btn collabpatrol-btn-' + cls )
-			.text( label )
-			.on( 'click', onClick );
+	function createBtn( label, cls, onClick, icon ) {
+		var flagsByColor = {
+			green: [ 'primary', 'progressive' ],
+			yellow: [ 'progressive' ],
+			red: [ 'destructive' ],
+			grey: []
+		};
+		var button = new OO.ui.ButtonWidget( {
+			label: label,
+			icon: icon,
+			flags: flagsByColor[ cls ] || [],
+			framed: true
+		} );
+		button.on( 'click', onClick );
+		return button.$element.addClass( 'collabpatrol-btn-widget collabpatrol-btn-widget-' + cls );
 	}
 
 	function renderWrapper( revId, entry ) {
@@ -121,6 +125,7 @@
 			return;
 		}
 
+		var hookName = null;
 		var wrapper = $( '<div>' ).addClass( 'collabpatrol-wrapper' );
 		if ( CP.config.compactMode ) {
 			wrapper.addClass( 'collabpatrol-wrapper-compact' );
@@ -129,7 +134,7 @@
 		if ( !entry ) {
 			if ( CP.isUnpatrolled() ) {
 				wrapper.append(
-					createBtn( '⏳ ' + mw.msg( 'collabpatrol-btn-flag' ), 'yellow', function () {
+					createBtn( mw.msg( 'collabpatrol-btn-flag' ), 'yellow', function () {
 						promptComment( '' ).then( function ( comment ) {
 							if ( comment === null ) {
 								return;
@@ -138,12 +143,20 @@
 								renderInterface();
 							} );
 						} );
-					} )
+					}, 'flag' )
 				);
 			} else {
 				return;
 			}
 		} else {
+			var entryElapsed = CP.now() - entry.timestamp * 1000;
+			if ( entry.status === 'pending' ) {
+				wrapper.addClass( entryElapsed > CP.config.urgencyThreshold ? 'collabpatrol-wrapper-urgent' : 'collabpatrol-wrapper-pending' );
+			} else if ( entry.status === 'in_progress' ) {
+				wrapper.addClass( 'collabpatrol-wrapper-progress' );
+			} else {
+				wrapper.addClass( 'collabpatrol-wrapper-finished' );
+			}
 			wrapper.append( buildBadge( entry ) );
 
 			if ( entry.status === 'pending' ) {
@@ -151,7 +164,7 @@
 					CP.api.setStatus( revId, 'in_progress', entry.comment ).then( function () {
 						renderInterface();
 					} );
-				} ) );
+				}, 'userAvatar' ) );
 			} else if ( entry.status === 'in_progress' ) {
 				wrapper.append( createBtn( mw.msg( 'collabpatrol-btn-finish' ), 'green', function () {
 					CP.api.setStatus( revId, 'finished', entry.comment ).then( function () {
@@ -160,7 +173,7 @@
 						}
 						renderInterface();
 					} );
-				} ) );
+				}, 'check' ) );
 			}
 
 			if ( CP.config.isAdmin || entry.userText === CP.userName ) {
@@ -171,7 +184,7 @@
 					CP.api.removeEntry( revId ).then( function () {
 						renderInterface();
 					} );
-				} ) );
+				}, 'close' ) );
 			}
 
 			if ( CP.config.isAdmin && entry.userText ) {
@@ -181,24 +194,25 @@
 					}
 					var blockUrl = mw.util.getUrl( 'Special:Block/' + entry.userText );
 					window.open( blockUrl, '_blank' );
-				} ) );
+				}, 'block' ) );
 			}
 
 			if ( CP.config.showHistory && entry.history && entry.history.length > 1 ) {
 				wrapper.append( buildHistoryBlock( entry.history ) );
 			}
 
-			if ( entry.status !== 'finished' ) {
-				mw.hook( 'collabpatrol.entryActive' ).fire( revId, entry );
-			} else {
-				mw.hook( 'collabpatrol.entryFinished' ).fire( revId );
-			}
+			hookName = entry.status !== 'finished' ? 'collabpatrol.entryActive' : 'collabpatrol.entryFinished';
 		}
 
 		if ( target.hasClass( 'mw-diff-ntitle1' ) ) {
 			target.append( wrapper );
 		} else {
 			target.after( wrapper );
+		}
+
+		// Les hooks sont déclenchés APRÈS l'insertion du wrapper : le chat peut ainsi s'y rattacher
+		if ( hookName ) {
+			mw.hook( hookName ).fire( revId, entry );
 		}
 	}
 
@@ -222,3 +236,8 @@
 	} );
 
 }() );
+
+
+
+
+

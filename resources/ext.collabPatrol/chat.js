@@ -22,17 +22,29 @@
 	var isOpen = false;
 
 
+	var toggleButton = null;
+
 	function buildPanel() {
-		$chatPanel = $( '<div>' ).addClass( 'cp-chat-panel' ).attr( 'id', 'cp-chat' ).hide();
+		var panel = new OO.ui.PanelLayout( { expanded: false, framed: false, classes: [ 'cp-chat-panel' ] } );
+		$chatPanel = panel.$element.attr( 'id', 'cp-chat' ).hide();
 
 		var $header = $( '<div>' ).addClass( 'cp-chat-header' );
-		var $title = $( '<span>' ).addClass( 'cp-chat-title' ).text( '💬 ' + mw.msg( 'collabpatrol-chat-title' ) );
+		var $title = $( '<span>' ).addClass( 'cp-chat-title' ).append(
+			new OO.ui.IconWidget( { icon: 'speechBubbles' } ).$element,
+			$( '<span>' ).text( mw.msg( 'collabpatrol-chat-title' ) )
+		);
 		var $count = $( '<span>' ).addClass( 'cp-chat-count' );
-		var $toggle = $( '<button>' ).addClass( 'cp-chat-toggle' ).text( mw.msg( 'collabpatrol-chat-toggle-open' ) );
-		$toggle.on( 'click', function () {
+		toggleButton = new OO.ui.ButtonWidget( {
+			label: mw.msg( 'collabpatrol-chat-toggle-open' ),
+			icon: 'expand',
+			flags: [ 'progressive' ],
+			framed: true,
+			classes: [ 'cp-chat-toggle' ]
+		} );
+		toggleButton.on( 'click', function () {
 			togglePanel();
 		} );
-		$header.append( $title, $count, $toggle );
+		$header.append( $title, $count, toggleButton.$element );
 
 		var $body = $( '<div>' ).addClass( 'cp-chat-body' ).hide();
 		var $messages = $( '<div>' ).addClass( 'cp-chat-messages' );
@@ -70,6 +82,9 @@
 	}
 
 	function attachPanel() {
+		if ( !$chatPanel ) {
+			return;
+		}
 		$chatPanel.detach();
 
 		var $wrapper = $( '.collabpatrol-wrapper' ).last();
@@ -79,10 +94,17 @@
 			var $target = $( '.mw-diff-ntitle1' ).first();
 			if ( $target.length ) {
 				$target.append( $chatPanel );
+			} else {
+				// Repli (pas de bloc de diff) : sous #contentSub, comme le wrapper de ui.js
+				var $sub = $( '#contentSub' ).first();
+				if ( !$sub.length ) {
+					return;
+				}
+				$sub.after( $chatPanel );
 			}
 		}
 		$chatPanel.show();
-		var openNow = CP.config.chatOpenDefault || window.location.hash === '#cp-chat';
+		var openNow = isOpen || CP.config.chatOpenDefault || window.location.hash === '#cp-chat';
 		setOpenState( openNow );
 		if ( openNow ) {
 			loadMessages();
@@ -92,13 +114,12 @@
 	function setOpenState( open ) {
 		isOpen = !!open;
 		var $body = $chatPanel.find( '.cp-chat-body' );
-		var $toggle = $chatPanel.find( '.cp-chat-toggle' );
 		if ( isOpen ) {
 			$body.show();
-			$toggle.text( mw.msg( 'collabpatrol-chat-toggle-close' ) );
+			toggleButton.setLabel( mw.msg( 'collabpatrol-chat-toggle-close' ) ).setIcon( 'collapse' );
 		} else {
 			$body.hide();
-			$toggle.text( mw.msg( 'collabpatrol-chat-toggle-open' ) );
+			toggleButton.setLabel( mw.msg( 'collabpatrol-chat-toggle-open' ) ).setIcon( 'expand' );
 		}
 	}
 
@@ -111,35 +132,39 @@
 
 	function buildComposer() {
 		var $composer = $( '<div>' ).addClass( 'cp-chat-composer' );
-		var $input = $( '<textarea>' )
-			.addClass( 'cp-chat-input' )
-			.attr( 'placeholder', mw.msg( 'collabpatrol-chat-placeholder' ) )
-			.attr( 'maxlength', MAX_LEN )
-			.attr( 'rows', 2 );
+		var inputWidget = new OO.ui.MultilineTextInputWidget( {
+			placeholder: mw.msg( 'collabpatrol-chat-placeholder' ),
+			maxLength: MAX_LEN,
+			rows: 2,
+			autosize: true,
+			maxRows: 6,
+			classes: [ 'cp-chat-input' ]
+		} );
+		var $input = inputWidget.$input;
 		var $counter = $( '<span>' ).addClass( 'cp-chat-char-counter' ).text( '0/' + MAX_LEN );
-		var $btn = $( '<button>' )
-			.addClass( 'collabpatrol-btn collabpatrol-btn-green cp-chat-send' )
-			.text( mw.msg( 'collabpatrol-chat-btn-send' ) );
+		var sendButton = new OO.ui.ButtonWidget( {
+			label: mw.msg( 'collabpatrol-chat-btn-send' ),
+			icon: 'speechBubble',
+			flags: [ 'primary', 'progressive' ],
+			framed: true,
+			classes: [ 'cp-chat-send' ]
+		} );
 		var $error = $( '<div>' ).addClass( 'cp-chat-error' ).hide();
-		$composer.data( 'cp-input', $input );
-		$composer.data( 'cp-send', $btn );
+		$composer.data( 'cp-input', inputWidget );
+		$composer.data( 'cp-send', sendButton );
 		$composer.data( 'cp-error', $error );
 
 		$input.on( 'input', function () {
 			var len = $( this ).val().length;
 			$counter.text( len + '/' + MAX_LEN );
-			if ( len > MAX_LEN ) {
-				$counter.addClass( 'cp-chat-char-counter-over' );
-			} else {
-				$counter.removeClass( 'cp-chat-char-counter-over' );
-			}
+			$counter.toggleClass( 'cp-chat-char-counter-over', len > MAX_LEN );
 		} );
 
-		$btn.on( 'click', function () {
-			if ( !currentRevId ) {
+		function send() {
+			if ( !currentRevId || sendButton.isDisabled() ) {
 				return;
 			}
-			var msg = $input.val().trim();
+			var msg = inputWidget.getValue().trim();
 			if ( !msg ) {
 				return;
 			}
@@ -147,11 +172,11 @@
 				showError( $error, mw.msg( 'collabpatrol-chat-too-long' ) );
 				return;
 			}
-			$btn.prop( 'disabled', true );
+			sendButton.setDisabled( true );
 			$error.hide();
 			CP.api.chatPost( currentRevId, msg ).then( function ( result ) {
 				if ( result && result.result === 'success' ) {
-					$input.val( '' );
+					inputWidget.setValue( '' );
 					$counter.text( '0/' + MAX_LEN );
 					loadMessages();
 				} else {
@@ -168,23 +193,29 @@
 				}
 				showError( $error, errMsg );
 			} ).always( function () {
-				$btn.prop( 'disabled', false );
+				sendButton.setDisabled( isChatBanned );
 			} );
-		} );
+		}
+
+		sendButton.on( 'click', send );
 
 		$input.on( 'keydown', function ( e ) {
 			if ( ( e.ctrlKey || e.metaKey ) && e.key === 'Enter' ) {
-				$btn.trigger( 'click' );
+				send();
 			}
 		} );
 
-		$composer.append( $input, $( '<div>' ).addClass( 'cp-chat-composer-row' ).append( $counter, $btn ), $error );
-		CP.mentions.attachAutocomplete( $input );
+		$composer.append(
+			inputWidget.$element,
+			$( '<div>' ).addClass( 'cp-chat-composer-row' ).append( $counter, sendButton.$element ),
+			$error
+		);
+		CP.mentions.attachAutocomplete( $input, inputWidget.$element );
 		return $composer;
 	}
 
 	function showError( $el, msg ) {
-		$el.text( msg ).show();
+		$el.empty().append( new OO.ui.MessageWidget( { type: 'error', label: msg } ).$element ).show();
 		setTimeout( function () {
 			$el.fadeOut();
 		}, 4000 );
@@ -208,19 +239,17 @@
 
 	function updateComposerState() {
 		var $composer = $chatPanel.find( '.cp-chat-composer' );
-		var $input = $composer.data( 'cp-input' );
-		var $btn = $composer.data( 'cp-send' );
+		var input = $composer.data( 'cp-input' );
+		var btn = $composer.data( 'cp-send' );
 		var $error = $composer.data( 'cp-error' );
-		if ( !$input || !$btn || !$error ) {
+		if ( !input || !btn || !$error ) {
 			return;
 		}
+		input.setDisabled( isChatBanned );
+		btn.setDisabled( isChatBanned );
 		if ( isChatBanned ) {
-			$input.prop( 'disabled', true );
-			$btn.prop( 'disabled', true );
 			showError( $error, mw.msg( 'collabpatrol-chat-user-banned' ) );
 		} else {
-			$input.prop( 'disabled', false );
-			$btn.prop( 'disabled', false );
 			$error.hide();
 		}
 	}
@@ -270,49 +299,52 @@
 		$row.append( $meta, $text );
 
 		if ( isMod || msg.userText === CP.userName ) {
-			var $del = $( '<button>' )
-				.addClass( 'cp-chat-btn-delete' )
-				.attr( 'title', mw.msg( 'collabpatrol-chat-btn-delete' ) )
-				.text( '✕' )
-				.on( 'click', function () {
-					if ( !window.confirm( mw.msg( 'collabpatrol-chat-confirm-delete' ) ) ) {
-						return;
-					}
-					CP.api.chatDelete( msg.id ).then( function () {
-						loadMessages();
-					} );
+			var delBtn = new OO.ui.ButtonWidget( {
+				icon: 'trash',
+				title: mw.msg( 'collabpatrol-chat-btn-delete' ),
+				framed: false,
+				flags: [ 'destructive' ],
+				classes: [ 'cp-chat-btn-delete' ]
+			} );
+			delBtn.on( 'click', function () {
+				if ( !window.confirm( mw.msg( 'collabpatrol-chat-confirm-delete' ) ) ) {
+					return;
+				}
+				CP.api.chatDelete( msg.id ).then( function () {
+					loadMessages();
 				} );
-			$row.append( $del );
+			} );
+			$row.append( delBtn.$element );
 		}
 		if ( isMod && msg.userText !== CP.userName ) {
 			var isUserBanned = !!bannedUsers[ msg.userText ];
-			var $ban = $( '<button>' )
-				.addClass( 'cp-chat-btn-delete cp-chat-btn-ban' )
-				.attr( 'title', isUserBanned ? mw.msg( 'collabpatrol-chat-btn-unban' ) : mw.msg( 'collabpatrol-chat-btn-ban' ) )
-				.text( isUserBanned ? '↺' : '!' )
-				.on( 'click', function () {
-					var confirmed;
-					if ( isUserBanned ) {
-						confirmed = window.confirm( mw.msg( 'collabpatrol-chat-confirm-unban', msg.userText ) );
-						if ( !confirmed ) {
-							return;
-						}
-						CP.api.chatUnban( msg.userText ).then( function () {
-							mw.notify( mw.msg( 'collabpatrol-chat-unban-success', msg.userText ) );
-							loadMessages();
-						} );
+			var banBtn = new OO.ui.ButtonWidget( {
+				icon: isUserBanned ? 'undo' : 'block',
+				title: isUserBanned ? mw.msg( 'collabpatrol-chat-btn-unban' ) : mw.msg( 'collabpatrol-chat-btn-ban' ),
+				framed: false,
+				flags: [ isUserBanned ? 'progressive' : 'destructive' ],
+				classes: [ 'cp-chat-btn-delete', 'cp-chat-btn-ban' ]
+			} );
+			banBtn.on( 'click', function () {
+				if ( isUserBanned ) {
+					if ( !window.confirm( mw.msg( 'collabpatrol-chat-confirm-unban', msg.userText ) ) ) {
 						return;
 					}
-					confirmed = window.confirm( mw.msg( 'collabpatrol-chat-confirm-ban', msg.userText ) );
-					if ( !confirmed ) {
-						return;
-					}
-					CP.api.chatBan( msg.userText, '' ).then( function () {
-						mw.notify( mw.msg( 'collabpatrol-chat-ban-success', msg.userText ) );
+					CP.api.chatUnban( msg.userText ).then( function () {
+						mw.notify( mw.msg( 'collabpatrol-chat-unban-success', msg.userText ) );
 						loadMessages();
 					} );
+					return;
+				}
+				if ( !window.confirm( mw.msg( 'collabpatrol-chat-confirm-ban', msg.userText ) ) ) {
+					return;
+				}
+				CP.api.chatBan( msg.userText, '' ).then( function () {
+					mw.notify( mw.msg( 'collabpatrol-chat-ban-success', msg.userText ) );
+					loadMessages();
 				} );
-			$row.append( $ban );
+			} );
+			$row.append( banBtn.$element );
 		}
 
 		return $row;
@@ -358,3 +390,8 @@
 	} );
 
 }() );
+
+
+
+
+

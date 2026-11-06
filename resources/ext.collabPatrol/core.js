@@ -87,4 +87,45 @@
 		return $( '.patrollink' ).length > 0;
 	};
 
+	/**
+	 * Métadonnées OOUI d'un statut (type de MessageWidget, icône, classe).
+	 *
+	 * @param {string} status pending | in_progress | finished
+	 * @param {boolean} [urgent]
+	 * @return {Object}
+	 */
+	CP.getStatusMeta = function ( status, urgent ) {
+		if ( status === 'pending' ) {
+			return urgent ?
+				{ type: 'error', icon: 'clock', cls: 'urgent' } :
+				{ type: 'warning', icon: 'clock', cls: 'pending' };
+		}
+		if ( status === 'in_progress' ) {
+			return { type: 'notice', icon: 'userAvatar', cls: 'progress' };
+		}
+		return { type: 'success', icon: 'check', cls: 'finished' };
+	};
+
+	/**
+	 * Construit un OO.ui.MessageWidget pour un statut.
+	 *
+	 * @param {string} status
+	 * @param {boolean} urgent
+	 * @param {jQuery|string} label
+	 * @param {boolean} inline
+	 * @return {jQuery}
+	 */
+	CP.buildStatusWidget = function ( status, urgent, label, inline ) {
+		var meta = CP.getStatusMeta( status, urgent );
+		return new OO.ui.MessageWidget( {
+			type: meta.type,
+			icon: meta.icon,
+			inline: !!inline,
+			label: label
+		} ).$element.addClass( 'collabpatrol-badge collabpatrol-badge-' + meta.cls );
+	};
+
 }() );
+
+
+

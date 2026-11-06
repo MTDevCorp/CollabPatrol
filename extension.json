@@ -122,7 +122,13 @@
 				"mediawiki.api",
 				"mediawiki.util",
 				"oojs-ui-core",
+				"oojs-ui-core.icons",
 				"oojs-ui-windows",
+				"oojs-ui.styles.icons-alerts",
+				"oojs-ui.styles.icons-editing-core",
+				"oojs-ui.styles.icons-interactions",
+				"oojs-ui.styles.icons-moderation",
+				"oojs-ui.styles.icons-user",
 				"mediawiki.notification"
 			]
 		},
@@ -200,12 +206,34 @@
 				"collabpatrol-chat-unban-success",
 				"collabpatrol-chat-toggle-open",
 				"collabpatrol-chat-toggle-close",
-				"collabpatrol-chat-count"
+				"collabpatrol-chat-count",
+				"collabpatrol-btn-ban",
+				"collabpatrol-template-verify",
+				"collabpatrol-template-doubt",
+				"collabpatrol-template-second-opinion",
+				"collabpatrol-template-complex",
+				"collabpatrol-template-vandalism",
+				"collabpatrol-template-sourcing",
+				"collabpatrol-template-major",
+				"collabpatrol-template-sensitive",
+				"collabpatrol-template-conflict",
+				"collabpatrol-template-other",
+				"collabpatrol-history-label",
+				"collabpatrol-counter-pending",
+				"collabpatrol-counter-progress",
+				"collabpatrol-notify-error",
+				"collabpatrol-confirm-ban",
+				"collabpatrol-chat-banned-word"
 			],
 			"dependencies": [
 				"ext.collabPatrol",
+				"ext.collabPatrol.chat",
 				"mediawiki.api",
-				"mediawiki.util"
+				"mediawiki.util",
+				"oojs-ui-core",
+				"oojs-ui-core.icons",
+				"oojs-ui-windows",
+				"mediawiki.notification"
 			],
 			"skinStyles": {
 				"minerva": [
@@ -223,6 +251,7 @@
 			"messages": [
 				"collabpatrol-dashboard-title",
 				"collabpatrol-dashboard-filter-all",
+				"collabpatrol-dashboard-refresh",
 				"collabpatrol-dashboard-filter-pending",
 				"collabpatrol-dashboard-filter-progress",
 				"collabpatrol-dashboard-col-id",
@@ -291,3 +320,4 @@
 		"MediaWiki\\Extension\\CollabPatrol\\": "includes/"
 	}
 }
+
