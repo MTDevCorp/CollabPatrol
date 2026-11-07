@@ -294,6 +294,18 @@
 	height: 20px;
 }
 
+.cp-mobile .cp-actions {
+	flex-wrap: wrap;
+	max-width: 100%;
+}
+
+/* Boutons avec texte qui ne tiennent plus à côté du titre : ligne dédiée, centrée */
+.cp-mobile.cp-actions-wrapped .cp-actions {
+	flex: 1 1 100%;
+	justify-content: center;
+	margin: 0 auto;
+}
+
 .cp-mobile .cp-status-ico {
 	width: 28px;
 	height: 28px;

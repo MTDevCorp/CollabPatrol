@@ -200,6 +200,26 @@
 		return $w;
 	}
 
+	/**
+	 * Minerva avec texte sur les boutons : si les boutons ne tiennent plus sur la
+	 * même ligne que le titre (statut), ils passent dessous et sont centrés.
+	 * La classe est retirée avant de mesurer, sinon le résultat resterait figé.
+	 */
+	function fitActions() {
+		if ( !CP.isMobile || CP.buttonsIconOnly ) {
+			return;
+		}
+		var $w = $( '.collabpatrol-wrapper' ).first();
+		var badge = $w.children( '.cp-status' )[ 0 ];
+		var actions = $w.children( '.cp-actions' )[ 0 ];
+		if ( !badge || !actions || !$w[ 0 ].offsetWidth ) {
+			return;
+		}
+		$w.removeClass( 'cp-actions-wrapped' );
+		var wrapped = actions.getBoundingClientRect().top >= badge.getBoundingClientRect().bottom - 1;
+		$w.toggleClass( 'cp-actions-wrapped', wrapped );
+	}
+
 	function mount( $w ) {
 		var $old = $( '.collabpatrol-wrapper' );
 		if ( $old.length ) {
@@ -238,6 +258,7 @@
 			$w.find( '.cp-history-wrap' ).prop( 'open', true );
 		}
 		mount( $w );
+		fitActions();
 		if ( !render.hashHandled && state.entry && window.location.hash === '#cp-chat' ) {
 			render.hashHandled = true;
 			if ( state.entry.status !== 'finished' && CP.config.chatEnabled ) {
@@ -287,6 +308,10 @@
 		}
 
 		CP.poll( refresh, CP.config.refreshInterval );
+
+		if ( CP.isMobile && !CP.buttonsIconOnly ) {
+			$( window ).on( 'resize orientationchange', fitActions );
+		}
 	}
 
 	mw.hook( 'wikipage.content' ).add( start );
