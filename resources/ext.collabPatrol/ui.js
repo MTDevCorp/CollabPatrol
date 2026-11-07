@@ -92,7 +92,7 @@
 				icon: 'flag',
 				label: mw.msg( 'collabpatrol-btn-flag' ),
 				color: 'flag',
-				iconOnly: iconOnly,
+				iconOnly: false,
 				onClick: function ( $btn ) {
 					withDialogs( function () {
 						CP.dialogs.promptComment( '' ).then( function ( comment ) {
@@ -127,21 +127,21 @@
 		var $actions = $( '<span>' ).addClass( 'cp-actions' );
 
 		if ( entry.status === 'pending' ) {
-			$actions.append( CP.w.button( {
-				icon: 'eye',
-				label: mw.msg( 'collabpatrol-btn-take' ),
-				color: 'take',
-				iconOnly: iconOnly,
-				onClick: function ( $btn ) {
-					act( CP.api.setStatus( revId, 'in_progress', entry.comment ), $btn );
-				}
-			} ) );
+ 		   $actions.append( CP.w.button( {
+  		      icon: 'eye',
+   		     label: mw.msg( 'collabpatrol-btn-take' ),
+   		     color: 'take',
+    		    iconOnly: false, // <-- Indispensable pour ne pas masquer le texte sur mobile
+    		    onClick: function ( $btn ) {
+    		        act( CP.api.setStatus( revId, 'in_progress', entry.comment ), $btn );
+  		      }
+   		    } ) );
 		} else if ( entry.status === 'in_progress' ) {
 			$actions.append( CP.w.button( {
 				icon: 'check',
 				label: mw.msg( 'collabpatrol-btn-finish' ),
 				color: 'finish',
-				iconOnly: iconOnly,
+				iconOnly: false,
 				onClick: function ( $btn ) {
 					act( CP.api.setStatus( revId, 'finished', entry.comment ), $btn, function () {
 						if ( CP.config.notifyFinished ) {

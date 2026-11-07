@@ -2,7 +2,8 @@
 	"@metadata": {
 		"authors": [
 			"Muffy",
-			"Janus"
+			"Janus",
+			"Célian"
 		]
 	},
 	"collabpatrol-desc": "Patrouille collaborative avec tableau de bord centralisé et discussion par diff",

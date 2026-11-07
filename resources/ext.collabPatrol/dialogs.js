@@ -18,23 +18,6 @@
 		return CP.isMobile || window.innerWidth < 640;
 	}
 
-	/**
-	 * Croix de fermeture toujours visible, indépendante du thème OOUI
-	 * (sur mobile, le bouton « fermer » natif pouvait manquer).
-	 */
-	function addCloseX( dialog ) {
-		var label = mw.msg( 'collabpatrol-chat-close' );
-		dialog.$element.addClass( 'cp-has-close' );
-		dialog.$frame.append(
-			$( '<button>' ).attr( { type: 'button', title: label, 'aria-label': label } )
-				.addClass( 'cp-dlg-close' )
-				.append( CP.w.icon( 'close' ) )
-				.on( 'click', function () {
-					dialog.close( { action: 'close' } );
-				} )
-		);
-	}
-
 	function getManager() {
 		if ( !manager ) {
 			manager = new OO.ui.WindowManager();
@@ -79,7 +62,6 @@
 		if ( !promptDialog ) {
 			promptDialog = new OO.ui.MessageDialog();
 			m.addWindows( [ promptDialog ] );
-			addCloseX( promptDialog );
 		}
 
 		input.on( 'enter', function () {
@@ -123,7 +105,6 @@
 		if ( !detailsDialog ) {
 			detailsDialog = new OO.ui.MessageDialog();
 			m.addWindows( [ detailsDialog ] );
-			addCloseX( detailsDialog );
 		}
 		return m.openWindow( detailsDialog, {
 			message: $content,
@@ -389,7 +370,6 @@
 		if ( !chatDialog ) {
 			chatDialog = new ChatDialog();
 			m.addWindows( [ chatDialog ] );
-			addCloseX( chatDialog );
 		}
 		return m.openWindow( chatDialog, $.extend( { size: isNarrow() ? 'full' : 'medium' }, data ) ).closed;
 	}
