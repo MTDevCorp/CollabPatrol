@@ -94,7 +94,7 @@ The dashboard at `Special:CollabPatrol` shows all active entries, their status, 
 [GPL-2.0-or-later](LICENSE)
 
 ## Credits
-Thanks to [Janus](https://github.com/janusdevikidia) to the UI refont when COllabPatrol was a gadget on Vikidia.
+Thanks to [Janus](https://github.com/janusdevikidia) to the UI refont when CollabPatrol was a gadget on Vikidia.
 
 ## Blocks
 
