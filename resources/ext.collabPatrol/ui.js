@@ -84,7 +84,10 @@
 
 	function build( entry ) {
 		var revId = state.revId;
+		// iconOnly : pastille compacte / historique masqué (Minerva)
+		// btnIconOnly : boutons sans texte (Minerva + préférence désactivée)
 		var iconOnly = CP.isMobile;
+		var btnIconOnly = CP.buttonsIconOnly;
 		var $w = $( '<div>' ).addClass( 'collabpatrol-wrapper' + ( CP.isMobile ? ' cp-mobile' : '' ) );
 
 		if ( !entry ) {
@@ -92,7 +95,7 @@
 				icon: 'flag',
 				label: mw.msg( 'collabpatrol-btn-flag' ),
 				color: 'flag',
-				iconOnly: false,
+				iconOnly: btnIconOnly,
 				onClick: function ( $btn ) {
 					withDialogs( function () {
 						CP.dialogs.promptComment( '' ).then( function ( comment ) {
@@ -131,7 +134,7 @@
   		      icon: 'eye',
    		     label: mw.msg( 'collabpatrol-btn-take' ),
    		     color: 'take',
-    		    iconOnly: false, // <-- Indispensable pour ne pas masquer le texte sur mobile
+    		    iconOnly: btnIconOnly,
     		    onClick: function ( $btn ) {
     		        act( CP.api.setStatus( revId, 'in_progress', entry.comment ), $btn );
   		      }
@@ -141,7 +144,7 @@
 				icon: 'check',
 				label: mw.msg( 'collabpatrol-btn-finish' ),
 				color: 'finish',
-				iconOnly: false,
+				iconOnly: btnIconOnly,
 				onClick: function ( $btn ) {
 					act( CP.api.setStatus( revId, 'finished', entry.comment ), $btn, function () {
 						if ( CP.config.notifyFinished ) {
@@ -157,7 +160,7 @@
 				icon: 'speechBubbles',
 				label: mw.msg( 'collabpatrol-chat-title' ),
 				color: 'neutral',
-				iconOnly: iconOnly,
+				iconOnly: btnIconOnly,
 				onClick: openChat
 			} );
 			if ( entry.chatCount > 0 ) {
@@ -174,7 +177,7 @@
 				icon: 'close',
 				label: mw.msg( 'collabpatrol-btn-cancel' ),
 				color: 'cancel',
-				iconOnly: iconOnly,
+				iconOnly: true,
 				onClick: function ( $btn ) {
 					if ( window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
 						act( CP.api.removeEntry( revId ).then( function () {

@@ -73,5 +73,7 @@
 	"collabpatrol-pref-refresh-30": "Cada 30 segundos",
 	"collabpatrol-pref-refresh-60": "Cada 60 segundos",
 	"collabpatrol-pref-notify-finished": "Mostrar notificación al finalizar una entrada",
-	"collabpatrol-pref-show-history": "Mostrar bloque de historial en las entradas"
+	"collabpatrol-pref-show-history": "Mostrar bloque de historial en las entradas",
+	"collabpatrol-pref-minerva-button-text": "Mostrar el texto de los botones en Minerva (apariencia móvil)",
+	"collabpatrol-pref-minerva-button-text-help": "Si se desactiva, los botones solo muestran su icono."
 }

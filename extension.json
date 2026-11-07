@@ -3,7 +3,8 @@
 	"version": "1.2.0",
 	"author": [
 		"MTDevCorp",
-		"Janus"
+		"Janus",
+		"Célian"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:CollabPatrol",
 	"descriptionmsg": "collabpatrol-desc",
@@ -64,7 +65,8 @@
 	"DefaultUserOptions": {
 		"collabpatrol-refresh-interval": 30,
 		"collabpatrol-notify-finished": 1,
-		"collabpatrol-show-history": 1
+		"collabpatrol-show-history": 1,
+		"collabpatrol-minerva-button-text": 1
 	},
 	"MessagesDirs": {
 		"CollabPatrol": [

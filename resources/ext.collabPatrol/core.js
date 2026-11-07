@@ -34,13 +34,18 @@
 		chatMaxLength: mw.config.get( 'wgCollabPatrolChatMaxLength' ) || 500,
 		refreshInterval: parseRefreshInterval(),
 		notifyFinished: !!parseInt( getUserOption( 'collabpatrol-notify-finished', 1 ), 10 ),
-		showHistory: !!parseInt( getUserOption( 'collabpatrol-show-history', 1 ), 10 )
+		showHistory: !!parseInt( getUserOption( 'collabpatrol-show-history', 1 ), 10 ),
+		// Minerva : afficher le texte des boutons (sinon icônes seules)
+		minervaButtonText: !!parseInt( getUserOption( 'collabpatrol-minerva-button-text', 1 ), 10 )
 	};
 
 	CP.userName = mw.config.get( 'wgUserName' );
 
-	/** Minerva (mobile) : interface en icônes seules. */
+	/** Minerva (mobile) : interface compacte. */
 	CP.isMobile = mw.config.get( 'skin' ) === 'minerva';
+
+	/** Boutons en icônes seules ? (Minerva uniquement, selon la préférence) */
+	CP.buttonsIconOnly = CP.isMobile && !CP.config.minervaButtonText;
 
 	CP.now = function () {
 		return Date.now();

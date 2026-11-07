@@ -2,7 +2,8 @@
 	"@metadata": {
 		"authors": [
 			"Muffy",
-			"Janus"
+			"Janus",
+			"Célian"
 		]
 	},
 	"collabpatrol-desc": "Collaborative patrol with centralized dashboard and per-diff discussion",
@@ -75,6 +76,8 @@
 	"collabpatrol-pref-refresh-60": "Every 60 seconds",
 	"collabpatrol-pref-notify-finished": "Show notification after finishing an entry",
 	"collabpatrol-pref-show-history": "Show history block on entries",
+	"collabpatrol-pref-minerva-button-text": "Show button text on Minerva (mobile skin)",
+	"collabpatrol-pref-minerva-button-text-help": "If disabled, buttons only show their icon.",
 	"echo-category-title-collabpatrol-mention": "{{PLURAL:$1|Patrol chat mention|Patrol chat mentions}}",
 	"echo-pref-tooltip-collabpatrol-mention": "Notify me when someone mentions me in a patrol discussion.",
 	"notification-header-collabpatrol-mention": "$1 mentioned you in the patrol discussion on $2",

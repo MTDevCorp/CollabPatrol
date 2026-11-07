@@ -76,6 +76,8 @@
 	"collabpatrol-pref-refresh-60": "Toutes les 60 secondes",
 	"collabpatrol-pref-notify-finished": "Afficher une notification après la fin d'une entrée",
 	"collabpatrol-pref-show-history": "Afficher l'historique des entrées",
+	"collabpatrol-pref-minerva-button-text": "Afficher le texte des boutons sur Minerva (skin mobile)",
+	"collabpatrol-pref-minerva-button-text-help": "Si désactivé, les boutons n'affichent que leur icône.",
 	"echo-category-title-collabpatrol-mention": "{{PLURAL:$1|Mention dans le chat de patrouille|Mentions dans le chat de patrouille}}",
 	"echo-pref-tooltip-collabpatrol-mention": "Me notifier quand quelqu'un me mentionne dans une discussion de patrouille.",
 	"notification-header-collabpatrol-mention": "$1 vous a mentionné dans la discussion de patrouille sur $2",

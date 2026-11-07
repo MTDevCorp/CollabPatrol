@@ -83,14 +83,14 @@
 		var $inner = $( '<div>' ).addClass( 'collabpatrol-dash-actions-inner' );
 		if ( entry.status === 'pending' ) {
 			$inner.append( CP.w.button( {
-				icon: 'eye', label: mw.msg( 'collabpatrol-btn-take' ), color: 'take',
+				icon: 'eye', label: mw.msg( 'collabpatrol-btn-take' ), color: 'take', iconOnly: CP.buttonsIconOnly,
 				onClick: function () {
 					act( CP.api.setStatus( entry.revId, 'in_progress', entry.comment ) );
 				}
 			} ) );
 		} else if ( entry.status === 'in_progress' ) {
 			$inner.append( CP.w.button( {
-				icon: 'check', label: mw.msg( 'collabpatrol-btn-finish' ), color: 'finish',
+				icon: 'check', label: mw.msg( 'collabpatrol-btn-finish' ), color: 'finish', iconOnly: CP.buttonsIconOnly,
 				onClick: function () {
 					act( CP.api.setStatus( entry.revId, 'finished', entry.comment ) );
 				}

@@ -72,6 +72,8 @@
 	"collabpatrol-pref-refresh-60": "Option label for 60-second auto-refresh.",
 	"collabpatrol-pref-notify-finished": "Toggle label for showing a notification when an entry is marked finished.",
 	"collabpatrol-pref-show-history": "Toggle label for showing the history block under an entry.",
+	"collabpatrol-pref-minerva-button-text": "Toggle label for showing the text of buttons on the Minerva skin.",
+	"collabpatrol-pref-minerva-button-text-help": "Help text under the Minerva button text toggle.",
 	"echo-category-title-collabpatrol-mention": "Echo notification category title. Parameters:\n* $1 - number of notifications",
 	"echo-pref-tooltip-collabpatrol-mention": "Echo preferences tooltip for the CollabPatrol mention category.",
 	"notification-header-collabpatrol-mention": "Echo notification header when a user is @mentioned in a patrol chat. Parameters:\n* $1 - name of the user who mentioned the recipient\n* $2 - title of the page the patrolled revision belongs to",

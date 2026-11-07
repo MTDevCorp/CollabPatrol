@@ -32,5 +32,12 @@ class PreferencesHooks {
 			'section' => 'rendering/collabpatrol',
 		];
 
+		$preferences['collabpatrol-minerva-button-text'] = [
+			'type' => 'toggle',
+			'label-message' => 'collabpatrol-pref-minerva-button-text',
+			'help-message' => 'collabpatrol-pref-minerva-button-text-help',
+			'section' => 'rendering/collabpatrol',
+		];
+
 	}
 }
