@@ -2,7 +2,7 @@
 
 CollabPatrol is a MediaWiki extension that brings collaborative revision patrolling to your wiki. It started as a JavaScript gadget for the [Vikidia](https://en.vikidia.org) project and has since grown into a full extension, available for any MediaWiki wiki.
 
-The idea is simple: instead of patrolling alone, patrollers can flag a revision they are unsure about, so other patrollers know it needs a second look. Flagged revisions are highlighted in Recent Changes, making the workload visible to the whole team.
+The idea is simple: instead of patrolling alone, patrollers can flag a revision they are unsure about, so other patrollers know it needs a second look. Flagged revisions are highlighted in Recent Changes, making the workload visible to the whole team. Once a revision has been reviewed (*finished*), its entry and its dashboard row are removed: only the history is kept, and feeds the statistics (top reviewers, top review requesters).
 
 ## Requirements
 

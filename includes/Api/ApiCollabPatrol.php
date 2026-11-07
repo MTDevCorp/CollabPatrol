@@ -116,7 +116,8 @@ class ApiCollabPatrol extends ApiBase {
 			$this->patrolRevision( $revId );
 		}
 		// Return the up-to-date entry (read from the primary DB, no replica lag):
-		// the client redraws from it without a second request.
+		// the client redraws from it without a second request. It is null once the
+		// revision is finished (a reviewed diff needs no review, the entry is deleted).
 		$this->getResult()->addValue( null, 'collabpatrol', [
 			'result' => 'success',
 			'revid' => $revId,

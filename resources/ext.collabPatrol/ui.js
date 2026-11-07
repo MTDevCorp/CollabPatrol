@@ -11,7 +11,7 @@
 	'use strict';
 
 	var CP = window.CollabPatrol;
-	var state = { revId: null, entry: null, sig: '', busy: false, started: false };
+	var state = { revId: null, entry: null, sig: '', busy: false, started: false, hidden: false };
 
 	function signature( entry ) {
 		if ( !entry ) {
@@ -145,6 +145,8 @@
 				iconOnly: CP.btnIconOnly( 'main' ),
 				onClick: function ( $btn ) {
 					act( CP.api.setStatus( revId, 'finished', entry.comment ), $btn, function () {
+						// Diff relue : plus de relecture à demander, l'interface disparaît
+						state.hidden = true;
 						if ( CP.config.notifyFinished ) {
 							mw.notify( mw.msg( 'collabpatrol-notify-patrolled' ) );
 						}
@@ -245,7 +247,7 @@
 	}
 
 	function render() {
-		if ( !state.entry && !CP.isUnpatrolled() ) {
+		if ( state.hidden || ( !state.entry && !CP.isUnpatrolled() ) ) {
 			$( '.collabpatrol-wrapper' ).remove();
 			return;
 		}

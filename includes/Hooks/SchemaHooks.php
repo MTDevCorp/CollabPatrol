@@ -18,6 +18,9 @@ class SchemaHooks {
 		$updater->addExtensionIndex( 'collab_patrol_history', 'cph_action_user', "$sqlDir/patch-cph-action-user.sql" );
 		$updater->addExtensionIndex( 'collab_patrol_chat', 'cpc_rev_id_id', "$sqlDir/patch-cpc-rev-id-id.sql" );
 
+		// Finished entries are now deleted when the review ends: clean the old ones.
+		$updater->addExtensionUpdate( [ 'applyPatch', "$sqlDir/patch-purge-finished.sql", true ] );
+
 		// The chat ban system has been removed.
 		$updater->dropExtensionTable( 'collab_patrol_chat_ban', "$sqlDir/patch-drop-chat-ban.sql" );
 	}

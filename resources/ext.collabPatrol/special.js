@@ -74,7 +74,7 @@
 
 		$tr.append(
 			$( '<td>' ).append( $( '<a>' ).attr( { href: mw.util.getUrl( '', { diff: entry.revId } ), target: '_blank', rel: 'noopener' } ).text( entry.revId ) ),
-			$( '<td>' ).append( CP.w.statusBadge( entry, { compact: true } ) ),
+			$( '<td>' ).append( CP.w.statusBadge( entry ) ),
 			$( '<td>' ).append( $( '<a>' ).attr( 'href', mw.util.getUrl( 'User:' + entry.userText ) ).text( entry.userText ) ),
 			$( '<td>' ).text( entry.comment || '' ),
 			$( '<td>' ).toggleClass( 'collabpatrol-dash-age-urgent', urgent ).text( CP.formatTimeElapsed( elapsed ) )

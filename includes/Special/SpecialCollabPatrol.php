@@ -72,47 +72,52 @@ class SpecialCollabPatrol extends SpecialPage {
 	}
 
 	private function renderStats( $out ): void {
+		// The page title is the only title (no second heading with the same text).
 		$out->setPageTitle( $this->msg( 'collabpatrol-stats-title' )->text() );
 		$stats = $this->store->getStats();
 
 		$out->addHTML( Html::openElement( 'div', [ 'class' => 'collabpatrol-stats' ] ) );
-		$out->addHTML( Html::element( 'h2', [], $this->msg( 'collabpatrol-stats-title' )->text() ) );
 
+		$rows = [
+			'collabpatrol-stats-total' => $stats['totalHistory'],
+			'collabpatrol-stats-pending' => $stats['pending'],
+			'collabpatrol-stats-progress' => $stats['in_progress'],
+			'collabpatrol-stats-finished' => $stats['finished'],
+		];
 		$out->addHTML( Html::openElement( 'table', [ 'class' => 'wikitable' ] ) );
-		$out->addHTML( Html::rawElement( 'tr', [],
-			Html::element( 'th', [], $this->msg( 'collabpatrol-stats-total' )->text() ) .
-			Html::element( 'td', [], (string)$stats['totalHistory'] )
-		) );
-		$out->addHTML( Html::rawElement( 'tr', [],
-			Html::element( 'th', [], $this->msg( 'collabpatrol-stats-pending' )->text() ) .
-			Html::element( 'td', [], (string)$stats['pending'] )
-		) );
-		$out->addHTML( Html::rawElement( 'tr', [],
-			Html::element( 'th', [], $this->msg( 'collabpatrol-stats-progress' )->text() ) .
-			Html::element( 'td', [], (string)$stats['in_progress'] )
-		) );
-		$out->addHTML( Html::rawElement( 'tr', [],
-			Html::element( 'th', [], $this->msg( 'collabpatrol-stats-finished' )->text() ) .
-			Html::element( 'td', [], (string)$stats['finished'] )
-		) );
+		foreach ( $rows as $msgKey => $value ) {
+			$out->addHTML( Html::rawElement( 'tr', [],
+				Html::element( 'th', [], $this->msg( $msgKey )->text() ) .
+				Html::element( 'td', [], (string)$value )
+			) );
+		}
 		$out->addHTML( Html::closeElement( 'table' ) );
 
-		if ( $stats['topPatrollers'] ) {
-			$out->addHTML( Html::element( 'h3', [], $this->msg( 'collabpatrol-stats-top-patrollers' )->text() ) );
-			$out->addHTML( Html::openElement( 'ol' ) );
-			foreach ( $stats['topPatrollers'] as $entry ) {
-				$userLink = $this->getLinkRenderer()->makeLink(
-					\Title::makeTitle( NS_USER, $entry['user'] ),
-					$entry['user']
-				);
-				$out->addHTML( Html::rawElement( 'li', [],
-					$userLink . ' — ' . (string)$entry['count']
-				) );
-			}
-			$out->addHTML( Html::closeElement( 'ol' ) );
-		}
+		$this->renderTopList( $out, 'collabpatrol-stats-top-reviewers', $stats['topReviewers'] );
+		$this->renderTopList( $out, 'collabpatrol-stats-top-requesters', $stats['topRequesters'] );
 
 		$out->addHTML( Html::closeElement( 'div' ) );
+	}
+
+	/**
+	 * @param \MediaWiki\Output\OutputPage $out
+	 * @param string $headingMsg
+	 * @param array[] $top List of [ 'user', 'count' ]
+	 */
+	private function renderTopList( $out, string $headingMsg, array $top ): void {
+		if ( !$top ) {
+			return;
+		}
+		$out->addHTML( Html::element( 'h2', [], $this->msg( $headingMsg )->text() ) );
+		$out->addHTML( Html::openElement( 'ol' ) );
+		foreach ( $top as $entry ) {
+			$userLink = $this->getLinkRenderer()->makeLink(
+				\Title::makeTitle( NS_USER, $entry['user'] ),
+				$entry['user']
+			);
+			$out->addHTML( Html::rawElement( 'li', [], $userLink . ' — ' . (string)$entry['count'] ) );
+		}
+		$out->addHTML( Html::closeElement( 'ol' ) );
 	}
 
 	protected function getGroupName(): string {

@@ -63,7 +63,8 @@ class CollabPatrolStore {
 
 	public function getEntriesByStatus( string $status, int $limit = 100 ): array {
 		$db = $this->lb->getConnection( DB_REPLICA );
-		$conds = [];
+		// A finished entry is no longer listed (a reviewed diff needs no review).
+		$conds = [ 'cp_status != ' . $db->addQuotes( 'finished' ) ];
 		if ( $status !== 'all' ) {
 			$conds['cp_status'] = $status;
 		}
@@ -103,8 +104,25 @@ class CollabPatrolStore {
 		return $entries;
 	}
 
+	/**
+	 * Creates or updates an entry.
+	 *
+	 * A revision that has been reviewed ("finished") needs no further review: its
+	 * entry is deleted (so it disappears from the dashboard and from the diff
+	 * interface). Only the history row remains, which is what the statistics use.
+	 */
 	public function upsertEntry( int $revId, int $pageId, string $status, UserIdentity $user, string $comment ): bool {
 		$db = $this->lb->getConnection( DB_PRIMARY );
+
+		if ( $status === 'finished' ) {
+			$db->delete( 'collab_patrol', [ 'cp_rev_id' => $revId ], __METHOD__ );
+			$this->addHistoryEntry( $revId, $status, $user, $comment );
+			if ( $this->config->get( 'CollabPatrolChatAutoDelete' ) ) {
+				$this->deleteChatForRevision( $revId );
+			}
+			return true;
+		}
+
 		$expirationSeconds = $this->config->get( 'CollabPatrolExpirationDelay' );
 		$now = ConvertibleTimestamp::now( TS_MW );
 		$expires = wfTimestamp( TS_MW, time() + $expirationSeconds );
@@ -134,10 +152,6 @@ class CollabPatrolStore {
 		);
 
 		$this->addHistoryEntry( $revId, $status, $user, $comment );
-
-		if ( $status === 'finished' && $this->config->get( 'CollabPatrolChatAutoDelete' ) ) {
-			$this->deleteChatForRevision( $revId );
-		}
 
 		return true;
 	}
@@ -211,7 +225,7 @@ class CollabPatrolStore {
 	public function getStats(): array {
 		$cache = MediaWikiServices::getInstance()->getMainWANObjectCache();
 		return $cache->getWithSetCallback(
-			$cache->makeKey( 'collabpatrol', 'stats' ),
+			$cache->makeKey( 'collabpatrol', 'stats', 'v2' ),
 			self::STATS_TTL,
 			function () {
 				return $this->computeStats();
@@ -233,29 +247,50 @@ class CollabPatrolStore {
 			$counts[$row->cp_status] = (int)$row->count;
 		}
 
+		// Everything below comes from the history: a reviewed entry is deleted from
+		// collab_patrol, but its history rows stay.
 		$total = $db->selectField( 'collab_patrol_history', 'COUNT(*)', [], __METHOD__ );
-		$topRes = $db->select(
+		$finished = $db->selectField(
 			'collab_patrol_history',
-			[ 'cph_user_text', 'actions' => 'COUNT(*)' ],
+			'COUNT(*)',
 			[ 'cph_action' => 'finished' ],
-			__METHOD__,
-			[ 'GROUP BY' => 'cph_user_text', 'ORDER BY' => 'actions DESC', 'LIMIT' => 10 ]
+			__METHOD__
 		);
-		$topPatrollers = [];
-		foreach ( $topRes as $row ) {
-			$topPatrollers[] = [
-				'user' => $row->cph_user_text,
-				'count' => (int)$row->actions,
-			];
-		}
 
 		return [
 			'pending' => $counts['pending'] ?? 0,
 			'in_progress' => $counts['in_progress'] ?? 0,
-			'finished' => $counts['finished'] ?? 0,
+			'finished' => (int)$finished,
 			'totalHistory' => (int)$total,
-			'topPatrollers' => $topPatrollers,
+			// Who completed the most reviews
+			'topReviewers' => $this->getTopUsers( 'finished', 'COUNT(*)' ),
+			// Who asked for the most reviews (distinct revisions: re-flagging the same diff counts once)
+			'topRequesters' => $this->getTopUsers( 'pending', 'COUNT(DISTINCT cph_rev_id)' ),
 		];
+	}
+
+	/**
+	 * @param string $action History action to count
+	 * @param string $countExpr SQL aggregate
+	 * @return array[] List of [ 'user' => string, 'count' => int ], best first
+	 */
+	private function getTopUsers( string $action, string $countExpr, int $limit = 10 ): array {
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			'collab_patrol_history',
+			[ 'cph_user_text', 'actions' => $countExpr ],
+			[ 'cph_action' => $action ],
+			__METHOD__,
+			[ 'GROUP BY' => 'cph_user_text', 'ORDER BY' => [ 'actions DESC', 'cph_user_text ASC' ], 'LIMIT' => $limit ]
+		);
+		$top = [];
+		foreach ( $res as $row ) {
+			$top[] = [
+				'user' => $row->cph_user_text,
+				'count' => (int)$row->actions,
+			];
+		}
+		return $top;
 	}
 
 	public function purgeExpired(): int {
