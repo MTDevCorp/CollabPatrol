@@ -11,6 +11,29 @@
 	var manager = null;
 	var chatDialog = null;
 	var promptDialog = null;
+	var detailsDialog = null;
+
+	/** Fenêtre étroite (téléphone) : les popups longs passent en plein écran. */
+	function isNarrow() {
+		return CP.isMobile || window.innerWidth < 640;
+	}
+
+	/**
+	 * Croix de fermeture toujours visible, indépendante du thème OOUI
+	 * (sur mobile, le bouton « fermer » natif pouvait manquer).
+	 */
+	function addCloseX( dialog ) {
+		var label = mw.msg( 'collabpatrol-chat-close' );
+		dialog.$element.addClass( 'cp-has-close' );
+		dialog.$frame.append(
+			$( '<button>' ).attr( { type: 'button', title: label, 'aria-label': label } )
+				.addClass( 'cp-dlg-close' )
+				.append( CP.w.icon( 'close' ) )
+				.on( 'click', function () {
+					dialog.close( { action: 'close' } );
+				} )
+		);
+	}
 
 	function getManager() {
 		if ( !manager ) {
@@ -56,6 +79,7 @@
 		if ( !promptDialog ) {
 			promptDialog = new OO.ui.MessageDialog();
 			m.addWindows( [ promptDialog ] );
+			addCloseX( promptDialog );
 		}
 
 		input.on( 'enter', function () {
@@ -85,13 +109,29 @@
 	 * ------------------------------------------------------------------- */
 
 	function showDetails( entry ) {
+		var m = getManager();
 		var $content = $( '<div>' ).addClass( 'cp-details' ).append(
-			CP.w.statusBadge( entry, { showComment: true } )
+			CP.w.statusBadge( entry )
 		);
-		if ( CP.config.showHistory && entry.history && entry.history.length > 1 ) {
-			$content.append( CP.w.historyBlock( entry.history ) );
+		if ( entry.comment ) {
+			$content.append( CP.w.commentLine( entry.comment ) );
 		}
-		return OO.ui.alert( $content, { size: 'medium' } );
+		if ( CP.config.showHistory && entry.history && entry.history.length > 1 ) {
+			$content.append( CP.w.historyToggle( entry.history ) );
+		}
+
+		if ( !detailsDialog ) {
+			detailsDialog = new OO.ui.MessageDialog();
+			m.addWindows( [ detailsDialog ] );
+			addCloseX( detailsDialog );
+		}
+		return m.openWindow( detailsDialog, {
+			message: $content,
+			size: 'medium',
+			actions: [
+				{ action: 'close', label: mw.msg( 'collabpatrol-chat-close' ), flags: [ 'primary' ] }
+			]
+		} ).closed;
 	}
 
 	/* ---------------------------------------------------------------------
@@ -107,7 +147,7 @@
 	ChatDialog.static.size = 'medium';
 	ChatDialog.static.title = mw.msg( 'collabpatrol-chat-title' );
 	ChatDialog.static.actions = [
-		{ action: 'close', label: mw.msg( 'collabpatrol-chat-close' ), flags: [ 'safe', 'close' ] }
+		{ action: 'close', label: mw.msg( 'collabpatrol-chat-close' ), flags: [ 'safe' ] }
 	];
 
 	ChatDialog.prototype.getBodyHeight = function () {
@@ -349,8 +389,9 @@
 		if ( !chatDialog ) {
 			chatDialog = new ChatDialog();
 			m.addWindows( [ chatDialog ] );
+			addCloseX( chatDialog );
 		}
-		return m.openWindow( chatDialog, data ).closed;
+		return m.openWindow( chatDialog, $.extend( { size: isNarrow() ? 'full' : 'medium' }, data ) ).closed;
 	}
 
 	CP.dialogs = {

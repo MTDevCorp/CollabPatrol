@@ -110,7 +110,7 @@
 		var urgent = entry.status === 'pending' && elapsed > CP.config.urgencyThreshold;
 		$w.addClass( 'cp-w-' + CP.getStatusMeta( entry.status, urgent ).cls );
 
-		var $badge = CP.w.statusBadge( entry, { compact: iconOnly, showComment: !iconOnly } );
+		var $badge = CP.w.statusBadge( entry, { compact: iconOnly } );
 		if ( iconOnly ) {
 			// Pas de survol au tactile : toucher la pastille ouvre le détail
 			$badge.attr( { role: 'button', tabindex: 0 } ).on( 'click keydown', function ( e ) {
@@ -168,19 +168,6 @@
 		}
 
 		var hasHistory = CP.config.showHistory && entry.history && entry.history.length > 1;
-		if ( iconOnly && hasHistory ) {
-			$actions.append( CP.w.button( {
-				icon: 'history',
-				label: mw.msg( 'collabpatrol-history-label' ),
-				color: 'neutral',
-				iconOnly: true,
-				onClick: function () {
-					withDialogs( function () {
-						CP.dialogs.showDetails( entry );
-					} );
-				}
-			} ) );
-		}
 
 		if ( CP.config.isAdmin || entry.userText === CP.userName ) {
 			$actions.append( CP.w.button( {
@@ -200,8 +187,12 @@
 
 		$w.append( $actions );
 
+		// Le motif est toujours visible (mobile compris) ; l'historique reste discret
+		if ( entry.comment ) {
+			$w.append( CP.w.commentLine( entry.comment ) );
+		}
 		if ( !iconOnly && hasHistory ) {
-			$w.append( CP.w.historyBlock( entry.history ) );
+			$w.append( CP.w.historyToggle( entry.history ) );
 		}
 		return $w;
 	}
@@ -237,7 +228,13 @@
 			$( '.collabpatrol-wrapper' ).remove();
 			return;
 		}
-		mount( build( state.entry ) );
+		// Un redessin (ex. minuteur) ne doit pas refermer l'historique ouvert
+		var historyOpen = $( '.collabpatrol-wrapper .cp-history-wrap' ).prop( 'open' );
+		var $w = build( state.entry );
+		if ( historyOpen ) {
+			$w.find( '.cp-history-wrap' ).prop( 'open', true );
+		}
+		mount( $w );
 		if ( !render.hashHandled && state.entry && window.location.hash === '#cp-chat' ) {
 			render.hashHandled = true;
 			if ( state.entry.status !== 'finished' && CP.config.chatEnabled ) {

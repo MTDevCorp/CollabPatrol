@@ -14,13 +14,13 @@
 
 .collabpatrol-dash-filter {
 	min-width: 160px;
-	padding: 3px 6px;
+	padding: 5px 8px;
 	border: 1px solid var( --border-color-base, #a2a9b1 );
 	border-radius: 2px;
 	background: var( --background-color-base, #fff );
 	color: var( --color-base, #202122 );
 	font: inherit;
-	font-size: 0.875em;
+	font-size: 0.9375em;
 }
 
 .collabpatrol-dash-tablewrap {
@@ -32,19 +32,19 @@
 .collabpatrol-dash-table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: 0.875em;
+	font-size: 0.9375em;
 }
 
 .collabpatrol-dash-table th,
 .collabpatrol-dash-table td {
-	padding: 5px 10px;
+	padding: 7px 10px;
 	vertical-align: middle;
 }
 
 .collabpatrol-dash-table th {
 	background: var( --background-color-neutral, #eaecf0 );
 	color: var( --color-subtle, #54595d );
-	font-size: 0.8125em;
+	font-size: 0.875em;
 	letter-spacing: 0.03em;
 	text-align: left;
 	text-transform: uppercase;
@@ -61,6 +61,7 @@
 
 .collabpatrol-dash-table td:nth-child( 4 ) {
 	overflow-wrap: break-word;
+	font-weight: 600;
 }
 
 /* Dernière colonne : largeur des boutons, sur une seule ligne */

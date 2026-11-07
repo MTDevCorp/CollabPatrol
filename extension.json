@@ -102,6 +102,9 @@
 			"scripts": [
 				"resources/ext.collabPatrol/widgets.js"
 			],
+			"messages": [
+				"collabpatrol-history-label"
+			],
 			"styles": [
 				"resources/ext.collabPatrol/styles.css"
 			],

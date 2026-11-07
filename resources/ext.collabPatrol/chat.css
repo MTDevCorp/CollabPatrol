@@ -4,7 +4,7 @@
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	font-size: 0.875em;
+	font-size: 0.9375em;
 }
 
 .cp-chat-messages {
@@ -21,7 +21,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 1px;
-	padding: 5px 30px 5px 9px;
+	padding: 6px 34px 6px 10px;
 	border: 1px solid var( --border-color-subtle, #eaecf0 );
 	border-left: 3px solid var( --border-color-base, #c8ccd1 );
 	border-radius: 2px;
@@ -64,8 +64,8 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 22px;
-	height: 22px;
+	width: 28px;
+	height: 28px;
 	padding: 0;
 	border: 1px solid transparent;
 	border-radius: 2px;
@@ -177,13 +177,22 @@
 
 .cp-mention-list li {
 	margin: 0;
-	padding: 6px 12px;
+	padding: 8px 12px;
 	color: var( --color-base, #202122 );
-	font-size: 0.875em;
+	font-size: 0.9375em;
 	cursor: pointer;
 }
 
 .cp-mention-list li.cp-mention-active {
 	background: #eaf3ff;
 	color: #36c;
+}
+
+/* Titre de la discussion : laisse la place à la croix de fermeture */
+.cp-has-close .oo-ui-processDialog-title {
+	padding-right: 48px;
+}
+
+.cp-chat-layout .cp-chat-msg-meta {
+	font-size: 0.875em;
 }

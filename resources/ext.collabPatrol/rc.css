@@ -2,8 +2,8 @@
 
 .collabpatrol-rc-dot {
 	display: inline-block;
-	width: 0.65em;
-	height: 0.65em;
+	width: 0.75em;
+	height: 0.75em;
 	margin-right: 0.15em;
 	border-radius: 50%;
 	background: #72777d;
@@ -20,11 +20,11 @@
 	gap: 4px 14px;
 	box-sizing: border-box;
 	margin-top: 6px;
-	padding: 3px 10px;
+	padding: 5px 10px;
 	border: 1px solid var( --border-color-subtle, #c8ccd1 );
 	border-radius: 2px;
 	background: var( --background-color-neutral-subtle, #f8f9fa );
-	font-size: 0.8125em;
+	font-size: 0.9375em;
 }
 
 .collabpatrol-rc-counter-pending,

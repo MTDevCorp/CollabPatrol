@@ -112,11 +112,38 @@
 		return $block;
 	}
 
+	/**
+	 * Motif (commentaire) du signalement : mis en avant, sur sa propre ligne.
+	 *
+	 * @param {string} comment
+	 * @return {jQuery}
+	 */
+	function commentLine( comment ) {
+		return $( '<div>' ).addClass( 'cp-comment' ).text( comment );
+	}
+
+	/**
+	 * Historique replié par défaut (discret) : un simple « Historique (n) »
+	 * qu'on déplie à la demande.
+	 *
+	 * @param {Object[]} history
+	 * @return {jQuery}
+	 */
+	function historyToggle( history ) {
+		var label = mw.msg( 'collabpatrol-history-label' ).replace( /\s*:\s*$/, '' );
+		return $( '<details>' ).addClass( 'cp-history-wrap' ).append(
+			$( '<summary>' ).text( label + ' (' + history.length + ')' ),
+			historyBlock( history )
+		);
+	}
+
 	CP.w = {
 		icon: icon,
 		button: button,
 		statusBadge: statusBadge,
-		historyBlock: historyBlock
+		commentLine: commentLine,
+		historyBlock: historyBlock,
+		historyToggle: historyToggle
 	};
 
 }() );
