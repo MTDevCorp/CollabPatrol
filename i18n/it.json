@@ -74,6 +74,9 @@
 	"collabpatrol-pref-refresh-60": "Ogni 60 secondi",
 	"collabpatrol-pref-notify-finished": "Mostra una notifica quando un elemento viene completato",
 	"collabpatrol-pref-show-history": "Mostra il blocco cronologia nelle voci",
-	"collabpatrol-pref-minerva-button-text": "Mostra il testo dei pulsanti su Minerva (skin mobile)",
-	"collabpatrol-pref-minerva-button-text-help": "Se disattivato, i pulsanti mostrano solo l'icona."
+	"collabpatrol-pref-minerva-button-mode": "Visualizzazione dei pulsanti su Minerva (skin mobile)",
+	"collabpatrol-pref-minerva-button-mode-normal": "Normale (testo sui pulsanti principali)",
+	"collabpatrol-pref-minerva-button-mode-compact": "Compatto (solo icone)",
+	"collabpatrol-pref-minerva-button-mode-full": "Completo (testo su tutti i pulsanti tranne Annulla)"
 }
+

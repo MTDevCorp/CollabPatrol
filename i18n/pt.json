@@ -74,6 +74,8 @@
 	"collabpatrol-pref-refresh-60": "A cada 60 segundos",
 	"collabpatrol-pref-notify-finished": "Mostrar notificação ao concluir uma entrada",
 	"collabpatrol-pref-show-history": "Mostrar bloco de histórico nas entradas",
-	"collabpatrol-pref-minerva-button-text": "Mostrar o texto dos botões no Minerva (aparência móvel)",
-	"collabpatrol-pref-minerva-button-text-help": "Se desativado, os botões mostram apenas o ícone."
+	"collabpatrol-pref-minerva-button-mode": "Exibição dos botões no Minerva (aparência móvel)",
+	"collabpatrol-pref-minerva-button-mode-normal": "Normal (texto nos botões principais)",
+	"collabpatrol-pref-minerva-button-mode-compact": "Compacto (apenas ícones)",
+	"collabpatrol-pref-minerva-button-mode-full": "Completo (texto em todos os botões, exceto Cancelar)"
 }

@@ -32,11 +32,15 @@ class PreferencesHooks {
 			'section' => 'rendering/collabpatrol',
 		];
 
-		$preferences['collabpatrol-minerva-button-text'] = [
-			'type' => 'toggle',
-			'label-message' => 'collabpatrol-pref-minerva-button-text',
-			'help-message' => 'collabpatrol-pref-minerva-button-text-help',
+		$preferences['collabpatrol-minerva-button-mode'] = [
+			'type' => 'select',
+			'label-message' => 'collabpatrol-pref-minerva-button-mode',
 			'section' => 'rendering/collabpatrol',
+			'options' => [
+				wfMessage( 'collabpatrol-pref-minerva-button-mode-normal' )->text() => 'normal',
+				wfMessage( 'collabpatrol-pref-minerva-button-mode-compact' )->text() => 'compact',
+				wfMessage( 'collabpatrol-pref-minerva-button-mode-full' )->text() => 'full',
+			],
 		];
 
 	}

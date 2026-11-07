@@ -85,9 +85,7 @@
 	function build( entry ) {
 		var revId = state.revId;
 		// iconOnly : pastille compacte / historique masqué (Minerva)
-		// btnIconOnly : boutons sans texte (Minerva + préférence désactivée)
 		var iconOnly = CP.isMobile;
-		var btnIconOnly = CP.buttonsIconOnly;
 		var $w = $( '<div>' ).addClass( 'collabpatrol-wrapper' + ( CP.isMobile ? ' cp-mobile' : '' ) );
 
 		if ( !entry ) {
@@ -95,7 +93,7 @@
 				icon: 'flag',
 				label: mw.msg( 'collabpatrol-btn-flag' ),
 				color: 'flag',
-				iconOnly: btnIconOnly,
+				iconOnly: CP.btnIconOnly( 'main' ),
 				onClick: function ( $btn ) {
 					withDialogs( function () {
 						CP.dialogs.promptComment( '' ).then( function ( comment ) {
@@ -134,7 +132,7 @@
   		      icon: 'eye',
    		     label: mw.msg( 'collabpatrol-btn-take' ),
    		     color: 'take',
-    		    iconOnly: btnIconOnly,
+    		    iconOnly: CP.btnIconOnly( 'main' ),
     		    onClick: function ( $btn ) {
     		        act( CP.api.setStatus( revId, 'in_progress', entry.comment ), $btn );
   		      }
@@ -144,7 +142,7 @@
 				icon: 'check',
 				label: mw.msg( 'collabpatrol-btn-finish' ),
 				color: 'finish',
-				iconOnly: btnIconOnly,
+				iconOnly: CP.btnIconOnly( 'main' ),
 				onClick: function ( $btn ) {
 					act( CP.api.setStatus( revId, 'finished', entry.comment ), $btn, function () {
 						if ( CP.config.notifyFinished ) {
@@ -160,7 +158,7 @@
 				icon: 'speechBubbles',
 				label: mw.msg( 'collabpatrol-chat-title' ),
 				color: 'neutral',
-				iconOnly: btnIconOnly,
+				iconOnly: CP.btnIconOnly( 'chat' ),
 				onClick: openChat
 			} );
 			if ( entry.chatCount > 0 ) {
@@ -177,7 +175,7 @@
 				icon: 'close',
 				label: mw.msg( 'collabpatrol-btn-cancel' ),
 				color: 'cancel',
-				iconOnly: true,
+				iconOnly: CP.btnIconOnly( 'cancel' ),
 				onClick: function ( $btn ) {
 					if ( window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
 						act( CP.api.removeEntry( revId ).then( function () {
@@ -206,7 +204,7 @@
 	 * La classe est retirée avant de mesurer, sinon le résultat resterait figé.
 	 */
 	function fitActions() {
-		if ( !CP.isMobile || CP.buttonsIconOnly ) {
+		if ( !CP.isMobile || !CP.hasButtonLabels() ) {
 			return;
 		}
 		var $w = $( '.collabpatrol-wrapper' ).first();
@@ -309,7 +307,7 @@
 
 		CP.poll( refresh, CP.config.refreshInterval );
 
-		if ( CP.isMobile && !CP.buttonsIconOnly ) {
+		if ( CP.isMobile && CP.hasButtonLabels() ) {
 			$( window ).on( 'resize orientationchange', fitActions );
 		}
 	}

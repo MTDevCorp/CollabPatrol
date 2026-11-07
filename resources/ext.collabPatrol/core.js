@@ -26,6 +26,11 @@
 		return value * 1000;
 	}
 
+	function parseButtonMode() {
+		var value = String( getUserOption( 'collabpatrol-minerva-button-mode', 'normal' ) );
+		return [ 'compact', 'normal', 'full' ].indexOf( value ) === -1 ? 'normal' : value;
+	}
+
 	CP.config = {
 		urgencyThreshold: ( mw.config.get( 'wgCollabPatrolUrgencyThreshold' ) || 3600 ) * 1000,
 		isAdmin: !!mw.config.get( 'wgCollabPatrolIsAdmin' ),
@@ -35,8 +40,8 @@
 		refreshInterval: parseRefreshInterval(),
 		notifyFinished: !!parseInt( getUserOption( 'collabpatrol-notify-finished', 1 ), 10 ),
 		showHistory: !!parseInt( getUserOption( 'collabpatrol-show-history', 1 ), 10 ),
-		// Minerva : afficher le texte des boutons (sinon icônes seules)
-		minervaButtonText: !!parseInt( getUserOption( 'collabpatrol-minerva-button-text', 1 ), 10 )
+		// Minerva : compact (icônes seules) | normal | full (libellés partout)
+		minervaButtonMode: parseButtonMode()
 	};
 
 	CP.userName = mw.config.get( 'wgUserName' );
@@ -44,8 +49,37 @@
 	/** Minerva (mobile) : interface compacte. */
 	CP.isMobile = mw.config.get( 'skin' ) === 'minerva';
 
-	/** Boutons en icônes seules ? (Minerva uniquement, selon la préférence) */
-	CP.buttonsIconOnly = CP.isMobile && !CP.config.minervaButtonText;
+	/**
+	 * Un bouton s'affiche-t-il en icône seule ? (Minerva uniquement ; ailleurs : jamais)
+	 *
+	 * Modes : compact = icônes seules ; normal = libellé sur les boutons
+	 * principaux (signaler / prendre / terminer) ; full = libellé partout.
+	 * Annuler n'a jamais de libellé sur Minerva.
+	 *
+	 * @param {string} kind main | chat | cancel
+	 * @return {boolean}
+	 */
+	CP.btnIconOnly = function ( kind ) {
+		if ( !CP.isMobile ) {
+			return false;
+		}
+		if ( kind === 'cancel' ) {
+			return true;
+		}
+		switch ( CP.config.minervaButtonMode ) {
+			case 'compact':
+				return true;
+			case 'full':
+				return false;
+			default:
+				return kind !== 'main';
+		}
+	};
+
+	/** Au moins un bouton a-t-il un libellé ? */
+	CP.hasButtonLabels = function () {
+		return !CP.isMobile || CP.config.minervaButtonMode !== 'compact';
+	};
 
 	CP.now = function () {
 		return Date.now();
