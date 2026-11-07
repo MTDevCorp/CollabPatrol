@@ -93,7 +93,7 @@
 				icon: 'flag',
 				label: mw.msg( 'collabpatrol-btn-flag' ),
 				color: 'flag',
-				iconOnly: CP.btnIconOnly( 'main' ),
+				iconOnly: CP.btnIconOnly( 'flag' ),
 				onClick: function ( $btn ) {
 					withDialogs( function () {
 						CP.dialogs.promptComment( '' ).then( function ( comment ) {
@@ -315,3 +315,4 @@
 	mw.hook( 'wikipage.content' ).add( start );
 
 }() );
+

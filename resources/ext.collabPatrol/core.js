@@ -54,13 +54,17 @@
 	 *
 	 * Modes : compact = icônes seules ; normal = libellé sur les boutons
 	 * principaux (signaler / prendre / terminer) ; full = libellé partout.
-	 * Annuler n'a jamais de libellé sur Minerva.
+	 * Annuler n'a jamais de libellé sur Minerva ; le bouton drapeau
+	 * (« Mettre en attente ») a toujours son libellé, quel que soit le mode.
 	 *
-	 * @param {string} kind main | chat | cancel
+	 * @param {string} kind main | flag | chat | cancel
 	 * @return {boolean}
 	 */
 	CP.btnIconOnly = function ( kind ) {
 		if ( !CP.isMobile ) {
+			return false;
+		}
+		if ( kind === 'flag' ) {
 			return false;
 		}
 		if ( kind === 'cancel' ) {
@@ -187,3 +191,4 @@
 	};
 
 }() );
+
