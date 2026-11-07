@@ -14,12 +14,7 @@ class CollabPatrolExpireJob extends Job {
 	}
 
 	public function run(): bool {
-		$services = \MediaWiki\MediaWikiServices::getInstance();
-		$store = new CollabPatrolStore(
-			$services->getDBLoadBalancer(),
-			$services->getMainConfig()
-		);
-		$store->purgeExpired();
+		CollabPatrolStore::newFromServices()->purgeExpired();
 		return true;
 	}
 }

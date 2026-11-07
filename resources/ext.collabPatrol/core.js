@@ -1,3 +1,7 @@
+/**
+ * CollabPatrol — noyau léger (aucune dépendance OOUI JS).
+ * Configuration, helpers de temps/statut et utilitaires partagés.
+ */
 ( function () {
 	'use strict';
 
@@ -26,34 +30,24 @@
 		urgencyThreshold: ( mw.config.get( 'wgCollabPatrolUrgencyThreshold' ) || 3600 ) * 1000,
 		isAdmin: !!mw.config.get( 'wgCollabPatrolIsAdmin' ),
 		autoPatrol: !!mw.config.get( 'wgCollabPatrolAutoPatrol' ),
+		chatEnabled: !!mw.config.get( 'wgCollabPatrolChatEnabled' ),
+		chatMaxLength: mw.config.get( 'wgCollabPatrolChatMaxLength' ) || 500,
 		refreshInterval: parseRefreshInterval(),
 		notifyFinished: !!parseInt( getUserOption( 'collabpatrol-notify-finished', 1 ), 10 ),
-		chatOpenDefault: !!parseInt( getUserOption( 'collabpatrol-chat-open-default', 0 ), 10 ),
-		showHistory: !!parseInt( getUserOption( 'collabpatrol-show-history', 1 ), 10 ),
-		compactMode: !!parseInt( getUserOption( 'collabpatrol-compact-mode', 0 ), 10 ),
-		commentTemplates: [
-			mw.msg( 'collabpatrol-template-verify' ),
-			mw.msg( 'collabpatrol-template-doubt' ),
-			mw.msg( 'collabpatrol-template-second-opinion' ),
-			mw.msg( 'collabpatrol-template-complex' ),
-			mw.msg( 'collabpatrol-template-vandalism' ),
-			mw.msg( 'collabpatrol-template-sourcing' ),
-			mw.msg( 'collabpatrol-template-major' ),
-			mw.msg( 'collabpatrol-template-sensitive' ),
-			mw.msg( 'collabpatrol-template-conflict' ),
-			mw.msg( 'collabpatrol-template-other' )
-		]
+		showHistory: !!parseInt( getUserOption( 'collabpatrol-show-history', 1 ), 10 )
 	};
 
 	CP.userName = mw.config.get( 'wgUserName' );
+
+	/** Minerva (mobile) : interface en icônes seules. */
+	CP.isMobile = mw.config.get( 'skin' ) === 'minerva';
 
 	CP.now = function () {
 		return Date.now();
 	};
 
 	CP.formatTimeElapsed = function ( ms ) {
-		var seconds = Math.floor( ms / 1000 );
-		var minutes = Math.floor( seconds / 60 );
+		var minutes = Math.floor( ms / 60000 );
 		var hours = Math.floor( minutes / 60 );
 		var days = Math.floor( hours / 24 );
 
@@ -69,14 +63,45 @@
 		return mw.msg( 'collabpatrol-time-now' );
 	};
 
+	/**
+	 * Libellé d'un statut ou d'une action d'historique.
+	 *
+	 * @param {string} status pending | in_progress | finished | removed
+	 * @return {string}
+	 */
 	CP.getStatusLabel = function ( status ) {
-		if ( status === 'pending' ) {
-			return mw.msg( 'collabpatrol-status-pending' );
+		switch ( status ) {
+			case 'pending':
+				return mw.msg( 'collabpatrol-status-pending' );
+			case 'in_progress':
+				return mw.msg( 'collabpatrol-status-in-progress' );
+			case 'removed':
+				return mw.msg( 'collabpatrol-status-removed' );
+			default:
+				return mw.msg( 'collabpatrol-status-finished' );
 		}
-		if ( status === 'in_progress' ) {
-			return mw.msg( 'collabpatrol-status-in-progress' );
+	};
+
+	/**
+	 * Icône OOUI et classe de couleur d'un statut / d'une action.
+	 *
+	 * @param {string} status
+	 * @param {boolean} [urgent]
+	 * @return {{icon: string, cls: string}}
+	 */
+	CP.getStatusMeta = function ( status, urgent ) {
+		switch ( status ) {
+			case 'pending':
+				return urgent ?
+					{ icon: 'alert', cls: 'urgent' } :
+					{ icon: 'clock', cls: 'pending' };
+			case 'in_progress':
+				return { icon: 'eye', cls: 'progress' };
+			case 'removed':
+				return { icon: 'close', cls: 'removed' };
+			default:
+				return { icon: 'check', cls: 'finished' };
 		}
-		return mw.msg( 'collabpatrol-status-finished' );
 	};
 
 	CP.getRevId = function () {
@@ -84,48 +109,42 @@
 	};
 
 	CP.isUnpatrolled = function () {
-		return $( '.patrollink' ).length > 0;
+		return document.querySelector( '.patrollink' ) !== null;
+	};
+
+	/** Un onglet masqué ne doit pas interroger le serveur. */
+	CP.isVisible = function () {
+		return !document.hidden;
 	};
 
 	/**
-	 * Métadonnées OOUI d'un statut (type de MessageWidget, icône, classe).
+	 * Exécute fn à intervalle régulier, uniquement quand l'onglet est visible,
+	 * et immédiatement quand il redevient visible.
 	 *
-	 * @param {string} status pending | in_progress | finished
-	 * @param {boolean} [urgent]
-	 * @return {Object}
+	 * @param {Function} fn
+	 * @param {number} interval ms (0 = désactivé)
+	 * @return {Function} stop
 	 */
-	CP.getStatusMeta = function ( status, urgent ) {
-		if ( status === 'pending' ) {
-			return urgent ?
-				{ type: 'error', icon: 'clock', cls: 'urgent' } :
-				{ type: 'warning', icon: 'clock', cls: 'pending' };
+	CP.poll = function ( fn, interval ) {
+		var timer = null;
+		function tick() {
+			if ( CP.isVisible() ) {
+				fn();
+			}
 		}
-		if ( status === 'in_progress' ) {
-			return { type: 'notice', icon: 'userAvatar', cls: 'progress' };
+		function onVisible() {
+			if ( CP.isVisible() ) {
+				fn();
+			}
 		}
-		return { type: 'success', icon: 'check', cls: 'finished' };
-	};
-
-	/**
-	 * Construit un OO.ui.MessageWidget pour un statut.
-	 *
-	 * @param {string} status
-	 * @param {boolean} urgent
-	 * @param {jQuery|string} label
-	 * @param {boolean} inline
-	 * @return {jQuery}
-	 */
-	CP.buildStatusWidget = function ( status, urgent, label, inline ) {
-		var meta = CP.getStatusMeta( status, urgent );
-		return new OO.ui.MessageWidget( {
-			type: meta.type,
-			icon: meta.icon,
-			inline: !!inline,
-			label: label
-		} ).$element.addClass( 'collabpatrol-badge collabpatrol-badge-' + meta.cls );
+		if ( interval > 0 ) {
+			timer = setInterval( tick, interval );
+			document.addEventListener( 'visibilitychange', onVisible );
+		}
+		return function () {
+			clearInterval( timer );
+			document.removeEventListener( 'visibilitychange', onVisible );
+		};
 	};
 
 }() );
-
-
-

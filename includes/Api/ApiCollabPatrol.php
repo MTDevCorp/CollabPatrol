@@ -10,9 +10,13 @@ use MediaWiki\Extension\CollabPatrol\Notifications\MentionNotifier;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\User\UserFactory;
 use Wikimedia\ParamValidator\ParamValidator;
+use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\Rdbms\ILoadBalancer;
 
 class ApiCollabPatrol extends ApiBase {
+
+	/** Sub-actions that modify data: POST + CSRF token + wiki block check. */
+	private const WRITE_ACTIONS = [ 'set', 'remove', 'chat_post', 'chat_delete' ];
 
 	private CollabPatrolStore $store;
 	private RevisionStore $revisionStore;
@@ -36,6 +40,10 @@ class ApiCollabPatrol extends ApiBase {
 		$params = $this->extractRequestParams();
 		$subaction = $params['subaction'];
 		$user = $this->getUser();
+
+		if ( in_array( $subaction, self::WRITE_ACTIONS, true ) ) {
+			$this->checkNotBlocked( $user );
+		}
 
 		switch ( $subaction ) {
 			case 'get':
@@ -68,25 +76,25 @@ class ApiCollabPatrol extends ApiBase {
 			case 'chat_delete':
 				$this->executeChatDelete( $params, $user );
 				break;
-			case 'chat_ban':
-				$this->executeChatBan( $params, $user );
-				break;
-			case 'chat_unban':
-				$this->executeChatUnban( $params, $user );
-				break;
 			default:
 				$this->dieWithError( 'apierror-invalidparameter', 'subaction' );
 		}
 	}
 
 	private function executeGet( array $params ): void {
-		$revId = (int)$params['revid'];
-		$entry = $this->store->getEntry( $revId );
-		if ( $entry ) {
-			$entry['history'] = $this->store->getHistory( $revId );
-			$this->getResult()->addValue( null, 'collabpatrol', $entry );
-		} else {
-			$this->getResult()->addValue( null, 'collabpatrol', null );
+		$this->getResult()->addValue( null, 'collabpatrol', [
+			'entry' => $this->store->getEntryFull( (int)$params['revid'] ),
+		] );
+	}
+
+	/**
+	 * Every write action re-checks, at the moment it is performed, that the user is
+	 * not blocked on the wiki (the extension has no block system of its own).
+	 */
+	private function checkNotBlocked( $user ): void {
+		$block = $user->getBlock( IDBAccessObject::READ_LATEST );
+		if ( $block && $block->isSitewide() ) {
+			$this->dieWithError( 'apierror-blocked', 'blocked' );
 		}
 	}
 
@@ -107,10 +115,13 @@ class ApiCollabPatrol extends ApiBase {
 		if ( $status === 'finished' && $this->getConfig()->get( 'CollabPatrolAutoPatrol' ) ) {
 			$this->patrolRevision( $revId );
 		}
+		// Return the up-to-date entry (read from the primary DB, no replica lag):
+		// the client redraws from it without a second request.
 		$this->getResult()->addValue( null, 'collabpatrol', [
 			'result' => 'success',
 			'revid' => $revId,
 			'status' => $status,
+			'entry' => $this->store->getEntryFull( $revId, true ),
 		] );
 	}
 
@@ -122,8 +133,8 @@ class ApiCollabPatrol extends ApiBase {
 				$this->dieWithError( 'apierror-permissiondenied', 'notowner' );
 			}
 		}
-		$this->store->deleteEntry( (int)$params['revid'] );
-		$this->getResult()->addValue( null, 'collabpatrol', [ 'result' => 'success' ] );
+		$this->store->deleteEntry( (int)$params['revid'], $user );
+		$this->getResult()->addValue( null, 'collabpatrol', [ 'result' => 'success', 'entry' => null ] );
 	}
 
 	private function executeHistory( array $params ): void {
@@ -149,8 +160,9 @@ class ApiCollabPatrol extends ApiBase {
 		if ( count( $revIds ) > 500 ) {
 			$revIds = array_slice( $revIds, 0, 500 );
 		}
+		// A plain list (not keyed by revision ID) so that the JSON stays an array.
 		$this->getResult()->addValue( null, 'collabpatrol', [
-			'entries' => $this->store->getEntriesForRevisions( $revIds )
+			'entries' => array_values( $this->store->getEntriesForRevisions( $revIds ) )
 		] );
 	}
 
@@ -159,22 +171,23 @@ class ApiCollabPatrol extends ApiBase {
 			$this->dieWithError( 'apierror-disabled', 'chat' );
 		}
 		$revId = (int)$params['revid'];
-		$messages = $this->store->getChatMessages( $revId );
+		$afterId = max( 0, (int)$params['afterid'] );
+		$messages = $this->store->getChatMessages( $revId, $afterId );
 		$isMod = $this->isChatModerator( $user );
-		$isBanned = $this->store->isUserChatBanned( $user->getName() );
 
+		// Only messages that contain an "@" can hold a mention: skip the lookup otherwise.
 		$texts = [];
 		foreach ( $messages as $i => $msg ) {
-			if ( !$msg['deleted'] ) {
+			if ( !$msg['deleted'] && strpos( $msg['message'], '@' ) !== false ) {
 				$texts[$i] = $msg['message'];
 			}
 		}
-		$resolvedMentions = $this->resolveMentions( $texts );
+		$resolvedMentions = $texts ? $this->resolveMentions( $texts ) : [];
 
 		$sanitized = [];
-		$userTexts = [];
+		$lastId = $afterId;
 		foreach ( $messages as $i => $msg ) {
-			$userTexts[] = $msg['userText'];
+			$lastId = max( $lastId, $msg['id'] );
 			if ( $msg['deleted'] ) {
 				$sanitized[] = [
 					'id' => $msg['id'],
@@ -191,17 +204,13 @@ class ApiCollabPatrol extends ApiBase {
 			}
 		}
 
-		$chatBans = $this->store->getChatBansForUsers( $userTexts );
-		$bannedUsers = [];
-		foreach ( $chatBans as $userText => $ban ) {
-			$bannedUsers[$userText] = true;
-		}
-
 		$this->getResult()->addValue( null, 'collabpatrol', [
 			'messages' => $sanitized,
+			// Messages already known to the client that have been deleted since.
+			'deleted' => $afterId > 0 ? $this->store->getDeletedChatIds( $revId, $afterId ) : [],
+			'lastId' => $lastId,
+			'count' => $this->store->getChatCount( $revId ),
 			'isMod' => $isMod,
-			'isBanned' => $isBanned,
-			'bannedUsers' => $bannedUsers,
 			'chatEnabled' => true,
 		] );
 	}
@@ -211,9 +220,6 @@ class ApiCollabPatrol extends ApiBase {
 
 		if ( !$this->getConfig()->get( 'CollabPatrolChatEnabled' ) ) {
 			$this->dieWithError( 'apierror-disabled', 'chat' );
-		}
-		if ( $this->store->isUserChatBanned( $user->getName() ) ) {
-			$this->dieWithError( [ 'collabpatrol-chat-user-banned' ], 'chat_user_banned' );
 		}
 
 		$revId = (int)$params['revid'];
@@ -337,47 +343,6 @@ class ApiCollabPatrol extends ApiBase {
 		] );
 	}
 
-	private function executeChatBan( array $params, $user ): void {
-		$this->requirePostedParameters( [ 'user' ] );
-		if ( !$this->getConfig()->get( 'CollabPatrolChatEnabled' ) ) {
-			$this->dieWithError( 'apierror-disabled', 'chat' );
-		}
-		if ( !$this->isChatModerator( $user ) ) {
-			$this->dieWithError( 'apierror-permissiondenied', 'notmoderator' );
-		}
-
-		$targetUser = trim( $params['user'] ?? '' );
-		if ( $targetUser === '' ) {
-			$this->dieWithError( 'apierror-missingparam', 'user' );
-		}
-		$reason = trim( $params['reason'] ?? '' );
-		$this->store->banChatUser( $targetUser, $user->getName(), $reason );
-		$this->getResult()->addValue( null, 'collabpatrol', [
-			'result' => 'success',
-			'userText' => $targetUser,
-		] );
-	}
-
-	private function executeChatUnban( array $params, $user ): void {
-		$this->requirePostedParameters( [ 'user' ] );
-		if ( !$this->getConfig()->get( 'CollabPatrolChatEnabled' ) ) {
-			$this->dieWithError( 'apierror-disabled', 'chat' );
-		}
-		if ( !$this->isChatModerator( $user ) ) {
-			$this->dieWithError( 'apierror-permissiondenied', 'notmoderator' );
-		}
-
-		$targetUser = trim( $params['user'] ?? '' );
-		if ( $targetUser === '' ) {
-			$this->dieWithError( 'apierror-missingparam', 'user' );
-		}
-		$ok = $this->store->unbanChatUser( $targetUser );
-		$this->getResult()->addValue( null, 'collabpatrol', [
-			'result' => $ok ? 'success' : 'notfound',
-			'userText' => $targetUser,
-		] );
-	}
-
 	private function isChatModerator( $user ): bool {
 		if ( $user->isAllowed( 'collabpatrol-admin' ) ) {
 			return true;
@@ -414,7 +379,7 @@ class ApiCollabPatrol extends ApiBase {
 				ParamValidator::PARAM_REQUIRED => true,
 				ParamValidator::PARAM_TYPE => [
 					'get', 'set', 'remove', 'history', 'list', 'stats', 'batchget',
-					'chat_get', 'chat_post', 'chat_delete', 'chat_ban', 'chat_unban',
+					'chat_get', 'chat_post', 'chat_delete',
 				],
 			],
 			'revid' => [ ParamValidator::PARAM_TYPE => 'integer' ],
@@ -427,25 +392,24 @@ class ApiCollabPatrol extends ApiBase {
 			],
 			'message' => [ ParamValidator::PARAM_TYPE => 'string', ParamValidator::PARAM_DEFAULT => '' ],
 			'msgid' => [ ParamValidator::PARAM_TYPE => 'integer' ],
-			'user' => [ ParamValidator::PARAM_TYPE => 'string', ParamValidator::PARAM_DEFAULT => '' ],
-			'reason' => [ ParamValidator::PARAM_TYPE => 'string', ParamValidator::PARAM_DEFAULT => '' ],
+			'afterid' => [ ParamValidator::PARAM_TYPE => 'integer', ParamValidator::PARAM_DEFAULT => 0 ],
 		];
 	}
 
 	public function needsToken(): string {
 		$sub = $this->getRequest()->getVal( 'subaction', '' );
-		return in_array( $sub, [ 'set', 'remove', 'chat_post', 'chat_delete', 'chat_ban', 'chat_unban' ], true )
+		return in_array( $sub, self::WRITE_ACTIONS, true )
 			? 'csrf'
 			: '';
 	}
 
 	public function isWriteMode(): bool {
 		$sub = $this->getRequest()->getVal( 'subaction', '' );
-		return in_array( $sub, [ 'set', 'remove', 'chat_post', 'chat_delete', 'chat_ban', 'chat_unban' ], true );
+		return in_array( $sub, self::WRITE_ACTIONS, true );
 	}
 
 	public function mustBePosted(): bool {
 		$sub = $this->getRequest()->getVal( 'subaction', '' );
-		return in_array( $sub, [ 'set', 'remove', 'chat_post', 'chat_delete', 'chat_ban', 'chat_unban' ], true );
+		return in_array( $sub, self::WRITE_ACTIONS, true );
 	}
 }

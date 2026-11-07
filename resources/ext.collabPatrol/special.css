@@ -1,105 +1,127 @@
-/* CollabPatrol — tableau de bord (design OOUI discret) */
+/* CollabPatrol — tableau de bord et statistiques. */
 
 #collabpatrol-dashboard {
-	padding: 4px 0;
+	padding: 2px 0;
 }
 
-/* Le tableau est un .wikitable : on l'adoucit sans le remplacer */
-#collabpatrol-dashboard .collabpatrol-dash-table {
+.collabpatrol-dash-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.collabpatrol-dash-filter {
+	min-width: 160px;
+	padding: 3px 6px;
+	border: 1px solid var( --border-color-base, #a2a9b1 );
 	border-radius: 2px;
-	/* pas d'overflow:hidden ici : il bloquait le défilement horizontal sous Minerva */
+	background: var( --background-color-base, #fff );
+	color: var( --color-base, #202122 );
+	font: inherit;
+	font-size: 0.875em;
 }
 
-#collabpatrol-dashboard .collabpatrol-dash-table th {
-	background: var( --background-color-neutral, #eaecf0 );
-	font-size: 0.8125em;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-	color: var( --color-subtle, #54595d );
+.collabpatrol-dash-tablewrap {
+	display: block;
+	width: 100%;
+	max-width: 100%;
 }
 
-#collabpatrol-dashboard .collabpatrol-dash-table tbody tr:hover {
-	background-color: #eaf3ff;
+.collabpatrol-dash-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.875em;
 }
 
-#collabpatrol-dashboard .collabpatrol-dash-table tbody tr.collabpatrol-dash-row-urgent:hover {
-	background-color: #fddcda;
-}
-
-/* Bouton « Bannir » : lien stylé comme un bouton destructif OOUI */
-a.collabpatrol-btn,
-a.collabpatrol-btn:hover {
-	color: #fff;
-	text-decoration: none;
-}
-
-.collabpatrol-btn-red {
-	background-color: #d33;
-	border-color: #d33;
-}
-
-.collabpatrol-btn-red:hover {
-	background-color: #ff4242;
-	border-color: #ff4242;
-}
-
-.collabpatrol-btn-red:active {
-	background-color: #b32424;
-	border-color: #b32424;
-}
-
-#collabpatrol-dashboard .collabpatrol-btn-red {
-	min-height: 32px;
-	padding-top: 4px;
-	padding-bottom: 4px;
+.collabpatrol-dash-table th,
+.collabpatrol-dash-table td {
+	padding: 5px 10px;
 	vertical-align: middle;
 }
 
-.collabpatrol-dash-toolbar .oo-ui-buttonElement {
-	margin: 0;
+.collabpatrol-dash-table th {
+	background: var( --background-color-neutral, #eaecf0 );
+	color: var( --color-subtle, #54595d );
+	font-size: 0.8125em;
+	letter-spacing: 0.03em;
+	text-align: left;
+	text-transform: uppercase;
+	white-space: nowrap;
 }
 
+.collabpatrol-dash-table tbody tr:hover {
+	background-color: #eaf3ff;
+}
 
+.collabpatrol-dash-table td:nth-child( 2 ) .cp-status {
+	flex: 0 1 auto;
+}
 
-/* Minerva : le contenu est étroit et force parfois les tableaux en display:block.
- * On garde un vrai tableau, d'une largeur minimale, dans un conteneur qui défile. */
+.collabpatrol-dash-table td:nth-child( 4 ) {
+	overflow-wrap: break-word;
+}
+
+/* Dernière colonne : largeur des boutons, sur une seule ligne */
+.collabpatrol-dash-table th:last-child,
+.collabpatrol-dash-actions {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.collabpatrol-dash-actions-inner {
+	display: inline-flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.collabpatrol-dash-row-urgent {
+	background-color: #fee7e6;
+	box-shadow: inset 3px 0 0 #d33;
+}
+
+.collabpatrol-dash-table tbody tr.collabpatrol-dash-row-urgent:hover {
+	background-color: #fddcda;
+}
+
+.collabpatrol-dash-age-urgent {
+	color: #a1261b;
+	font-weight: 700;
+}
+
+.collabpatrol-dash-empty {
+	padding: 18px;
+	border: 1px dashed var( --border-color-base, #c8ccd1 );
+	border-radius: 2px;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	color: var( --color-subtle, #72777d );
+	text-align: center;
+}
+
+/* Minerva : vrai tableau dans un conteneur qui défile horizontalement */
 .skin-minerva #collabpatrol-dashboard {
 	max-width: 100%;
 	min-width: 0;
 }
 
 .skin-minerva #collabpatrol-dashboard .collabpatrol-dash-tablewrap {
-	display: block;
-	width: 100%;
 	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
 }
 
 .skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table {
 	display: table;
-	width: 100%;
-	min-width: 620px;
-	overflow: visible;
+	width: max-content;
+	min-width: 100%;
 	margin: 0;
 }
 
-.skin-minerva .collabpatrol-dash-toolbar {
-	margin-bottom: 12px;
-}
-
-/* Minerva : la colonne « Note » garde une largeur lisible (pas de coupure mot à mot),
- * c'est le conteneur qui défile horizontalement si l'écran est trop étroit. */
-.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table {
-	width: max-content;
-	min-width: 100%;
-}
-
 .skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table td:nth-child( 4 ) {
-	min-width: 14em;
-	max-width: 22em;
+	min-width: 12em;
+	max-width: 20em;
 	white-space: normal;
-	overflow-wrap: break-word;
-	word-break: normal;
 }
 
 .skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table th,
@@ -107,3 +129,12 @@ a.collabpatrol-btn:hover {
 	white-space: nowrap;
 }
 
+/* ---- Statistiques ---- */
+.collabpatrol-stats-link {
+	font-size: 0.875em;
+	text-align: right;
+}
+
+.collabpatrol-stats {
+	max-width: 640px;
+}

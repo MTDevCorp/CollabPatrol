@@ -1,8 +1,9 @@
 {
 	"name": "CollabPatrol",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"author": [
-		"MTDevCorp"
+		"MTDevCorp",
+		"Janus"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:CollabPatrol",
 	"descriptionmsg": "collabpatrol-desc",
@@ -52,6 +53,7 @@
 	},
 	"Hooks": {
 		"LoadExtensionSchemaUpdates": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\SchemaHooks::onLoadExtensionSchemaUpdates",
+		"ChangesListInitRows": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\RCHooks::onChangesListInitRows",
 		"ChangesListInsertArticleLink": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\RCHooks::onChangesListInsertArticleLink",
 		"GetPreferences": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PreferencesHooks::onGetPreferences",
 		"BeforePageDisplay": "MediaWiki\\Extension\\CollabPatrol\\Hooks\\PageHooks::onBeforePageDisplay",
@@ -62,9 +64,7 @@
 	"DefaultUserOptions": {
 		"collabpatrol-refresh-interval": 30,
 		"collabpatrol-notify-finished": 1,
-		"collabpatrol-chat-open-default": 0,
-		"collabpatrol-show-history": 1,
-		"collabpatrol-compact-mode": 0
+		"collabpatrol-show-history": 1
 	},
 	"MessagesDirs": {
 		"CollabPatrol": [
@@ -78,23 +78,71 @@
 		"ext.collabPatrol": {
 			"scripts": [
 				"resources/ext.collabPatrol/core.js",
-				"resources/ext.collabPatrol/api.js",
-				"resources/ext.collabPatrol/mentions.js",
-				"resources/ext.collabPatrol/ui.js",
-				"resources/ext.collabPatrol/rc.js"
-			],
-			"styles": [
-				"resources/ext.collabPatrol/styles.css"
+				"resources/ext.collabPatrol/api.js"
 			],
 			"messages": [
 				"collabpatrol-status-pending",
 				"collabpatrol-status-in-progress",
 				"collabpatrol-status-finished",
+				"collabpatrol-status-removed",
+				"collabpatrol-time-now",
+				"collabpatrol-time-minutes",
+				"collabpatrol-time-hours",
+				"collabpatrol-time-days",
+				"collabpatrol-notify-error",
+				"collabpatrol-error-blocked"
+			],
+			"dependencies": [
+				"mediawiki.api",
+				"mediawiki.util",
+				"mediawiki.notification"
+			]
+		},
+		"ext.collabPatrol.widgets": {
+			"scripts": [
+				"resources/ext.collabPatrol/widgets.js"
+			],
+			"styles": [
+				"resources/ext.collabPatrol/styles.css"
+			],
+			"dependencies": [
+				"ext.collabPatrol",
+				"oojs-ui.styles.icons-accessibility",
+				"oojs-ui.styles.icons-alerts",
+				"oojs-ui.styles.icons-content",
+				"oojs-ui.styles.icons-interactions",
+				"oojs-ui.styles.icons-moderation"
+			]
+		},
+		"ext.collabPatrol.ui": {
+			"scripts": [
+				"resources/ext.collabPatrol/ui.js"
+			],
+			"messages": [
 				"collabpatrol-btn-flag",
 				"collabpatrol-btn-take",
 				"collabpatrol-btn-finish",
 				"collabpatrol-btn-cancel",
-				"collabpatrol-btn-ban",
+				"collabpatrol-chat-title",
+				"collabpatrol-history-label",
+				"collabpatrol-confirm-remove",
+				"collabpatrol-notify-patrolled"
+			],
+			"dependencies": [
+				"ext.collabPatrol.widgets"
+			]
+		},
+		"ext.collabPatrol.dialogs": {
+			"scripts": [
+				"resources/ext.collabPatrol/mentions.js",
+				"resources/ext.collabPatrol/dialogs.js"
+			],
+			"styles": [
+				"resources/ext.collabPatrol/chat.css"
+			],
+			"messages": [
+				"cancel",
+				"collabpatrol-btn-flag",
 				"collabpatrol-comment-placeholder",
 				"collabpatrol-template-verify",
 				"collabpatrol-template-doubt",
@@ -106,41 +154,8 @@
 				"collabpatrol-template-sensitive",
 				"collabpatrol-template-conflict",
 				"collabpatrol-template-other",
-				"collabpatrol-history-label",
-				"collabpatrol-counter-pending",
-				"collabpatrol-counter-progress",
-				"collabpatrol-notify-patrolled",
-				"collabpatrol-notify-error",
-				"collabpatrol-confirm-remove",
-				"collabpatrol-confirm-ban",
-				"collabpatrol-time-now",
-				"collabpatrol-time-minutes",
-				"collabpatrol-time-hours",
-				"collabpatrol-time-days"
-			],
-			"dependencies": [
-				"mediawiki.api",
-				"mediawiki.util",
-				"oojs-ui-core",
-				"oojs-ui-core.icons",
-				"oojs-ui-windows",
-				"oojs-ui.styles.icons-alerts",
-				"oojs-ui.styles.icons-editing-core",
-				"oojs-ui.styles.icons-interactions",
-				"oojs-ui.styles.icons-moderation",
-				"oojs-ui.styles.icons-user",
-				"mediawiki.notification"
-			]
-		},
-		"ext.collabPatrol.chat": {
-			"scripts": [
-				"resources/ext.collabPatrol/chat.js"
-			],
-			"styles": [
-				"resources/ext.collabPatrol/chat.css"
-			],
-			"messages": [
 				"collabpatrol-chat-title",
+				"collabpatrol-chat-close",
 				"collabpatrol-chat-placeholder",
 				"collabpatrol-chat-btn-send",
 				"collabpatrol-chat-btn-delete",
@@ -149,97 +164,33 @@
 				"collabpatrol-chat-too-long",
 				"collabpatrol-chat-banned-word",
 				"collabpatrol-chat-send-error",
-				"collabpatrol-chat-user-banned",
-				"collabpatrol-chat-confirm-delete",
-				"collabpatrol-chat-btn-ban",
-				"collabpatrol-chat-btn-unban",
-				"collabpatrol-chat-confirm-ban",
-				"collabpatrol-chat-confirm-unban",
-				"collabpatrol-chat-ban-success",
-				"collabpatrol-chat-unban-success",
-				"collabpatrol-chat-toggle-open",
-				"collabpatrol-chat-toggle-close",
-				"collabpatrol-chat-count"
+				"collabpatrol-chat-confirm-delete"
 			],
 			"dependencies": [
-				"ext.collabPatrol",
-				"mediawiki.api"
-			]
-		},
-		"ext.collabPatrol.minerva": {
-			"scripts": [
-				"resources/ext.collabPatrol.minerva/minerva.js"
-			],
-			"styles": [
-				"resources/ext.collabPatrol.minerva/minerva.css"
-			],
-			"messages": [
-				"collabpatrol-status-pending",
-				"collabpatrol-status-in-progress",
-				"collabpatrol-status-finished",
-				"collabpatrol-btn-flag",
-				"collabpatrol-btn-take",
-				"collabpatrol-btn-finish",
-				"collabpatrol-btn-cancel",
-				"collabpatrol-confirm-remove",
-				"collabpatrol-notify-patrolled",
-				"collabpatrol-comment-placeholder",
-				"collabpatrol-time-now",
-				"collabpatrol-time-minutes",
-				"collabpatrol-time-hours",
-				"collabpatrol-time-days",
-				"collabpatrol-chat-title",
-				"collabpatrol-chat-placeholder",
-				"collabpatrol-chat-btn-send",
-				"collabpatrol-chat-btn-delete",
-				"collabpatrol-chat-deleted",
-				"collabpatrol-chat-empty",
-				"collabpatrol-chat-too-long",
-				"collabpatrol-chat-send-error",
-				"collabpatrol-chat-user-banned",
-				"collabpatrol-chat-confirm-delete",
-				"collabpatrol-chat-btn-ban",
-				"collabpatrol-chat-btn-unban",
-				"collabpatrol-chat-confirm-ban",
-				"collabpatrol-chat-confirm-unban",
-				"collabpatrol-chat-ban-success",
-				"collabpatrol-chat-unban-success",
-				"collabpatrol-chat-toggle-open",
-				"collabpatrol-chat-toggle-close",
-				"collabpatrol-chat-count",
-				"collabpatrol-btn-ban",
-				"collabpatrol-template-verify",
-				"collabpatrol-template-doubt",
-				"collabpatrol-template-second-opinion",
-				"collabpatrol-template-complex",
-				"collabpatrol-template-vandalism",
-				"collabpatrol-template-sourcing",
-				"collabpatrol-template-major",
-				"collabpatrol-template-sensitive",
-				"collabpatrol-template-conflict",
-				"collabpatrol-template-other",
-				"collabpatrol-history-label",
-				"collabpatrol-counter-pending",
-				"collabpatrol-counter-progress",
-				"collabpatrol-notify-error",
-				"collabpatrol-confirm-ban",
-				"collabpatrol-chat-banned-word"
-			],
-			"dependencies": [
-				"ext.collabPatrol",
-				"ext.collabPatrol.chat",
+				"ext.collabPatrol.widgets",
 				"mediawiki.api",
 				"mediawiki.util",
 				"oojs-ui-core",
-				"oojs-ui-core.icons",
-				"oojs-ui-windows",
-				"mediawiki.notification"
+				"oojs-ui-windows"
+			]
+		},
+		"ext.collabPatrol.rc.styles": {
+			"styles": [
+				"resources/ext.collabPatrol/rc.css"
+			]
+		},
+		"ext.collabPatrol.rc": {
+			"scripts": [
+				"resources/ext.collabPatrol/rc.js"
 			],
-			"skinStyles": {
-				"minerva": [
-					"resources/ext.collabPatrol.minerva/minerva.css"
-				]
-			}
+			"messages": [
+				"collabpatrol-counter-pending",
+				"collabpatrol-counter-progress",
+				"collabpatrol-dashboard-title"
+			],
+			"dependencies": [
+				"ext.collabPatrol"
+			]
 		},
 		"ext.collabPatrol.special": {
 			"scripts": [
@@ -249,27 +200,21 @@
 				"resources/ext.collabPatrol/special.css"
 			],
 			"messages": [
-				"collabpatrol-dashboard-title",
 				"collabpatrol-dashboard-filter-all",
 				"collabpatrol-dashboard-refresh",
-				"collabpatrol-dashboard-filter-pending",
-				"collabpatrol-dashboard-filter-progress",
+				"collabpatrol-btn-take",
+				"collabpatrol-btn-finish",
+				"collabpatrol-btn-cancel",
+				"collabpatrol-confirm-remove",
 				"collabpatrol-dashboard-col-id",
 				"collabpatrol-dashboard-col-status",
 				"collabpatrol-dashboard-col-user",
 				"collabpatrol-dashboard-col-comment",
 				"collabpatrol-dashboard-col-age",
-				"collabpatrol-dashboard-col-actions",
-				"collabpatrol-stats-title",
-				"collabpatrol-stats-total",
-				"collabpatrol-stats-pending",
-				"collabpatrol-stats-progress",
-				"collabpatrol-stats-finished",
-				"collabpatrol-stats-top-patrollers"
+				"collabpatrol-dashboard-col-actions"
 			],
 			"dependencies": [
-				"ext.collabPatrol",
-				"oojs-ui-widgets"
+				"ext.collabPatrol.widgets"
 			]
 		}
 	},
@@ -320,4 +265,3 @@
 		"MediaWiki\\Extension\\CollabPatrol\\": "includes/"
 	}
 }
-

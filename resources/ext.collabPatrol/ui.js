@@ -1,243 +1,294 @@
+/**
+ * CollabPatrol — interface sur les diffs / révisions (desktop ET Minerva).
+ *
+ * - Affichage immédiat depuis wgCollabPatrolInitial (pas d'appel API au chargement).
+ * - Les actions utilisent l'entrée renvoyée par le serveur (pas de second appel).
+ * - Rafraîchissement périodique silencieux : le DOM n'est refait que si l'état change.
+ * - Les modules OOUI lourds (popup de discussion, saisie de commentaire) ne sont
+ *   chargés qu'à la demande.
+ */
 ( function () {
 	'use strict';
 
 	var CP = window.CollabPatrol;
-	var skin = mw.config.get( 'skin' );
+	var state = { revId: null, entry: null, sig: '', busy: false, started: false };
 
-	if ( skin === 'minerva' ) {
-		return;
-	}
-
-	function promptComment( defaultComment ) {
-		return new Promise( function ( resolve ) {
-			var selectWidget = new OO.ui.DropdownWidget( {
-				menu: {
-					items: CP.config.commentTemplates.map( function ( tpl ) {
-						return new OO.ui.MenuOptionWidget( { data: tpl, label: tpl } );
-					} )
-				}
-			} );
-
-			var textInput = new OO.ui.TextInputWidget( {
-				value: defaultComment || '',
-				placeholder: mw.msg( 'collabpatrol-comment-placeholder' )
-			} );
-
-			selectWidget.getMenu().on( 'select', function ( item ) {
-				if ( item ) {
-					textInput.setValue( item.getData() );
-				}
-			} );
-
-			var dialog = new OO.ui.MessageDialog();
-			var windowManager = new OO.ui.WindowManager();
-			$( document.body ).append( windowManager.$element );
-			windowManager.addWindows( [ dialog ] );
-
-			var panel = new OO.ui.PanelLayout( {
-				padded: true,
-				expanded: false,
-				content: [
-					new OO.ui.FieldLayout( selectWidget, { label: mw.msg( 'collabpatrol-template-other' ) + ' :', align: 'top' } ),
-					new OO.ui.FieldLayout( textInput, { label: mw.msg( 'collabpatrol-comment-placeholder' ) + ' :', align: 'top' } )
-				]
-			} );
-
-			windowManager.openWindow( dialog, {
-				title: mw.msg( 'collabpatrol-comment-placeholder' ),
-				message: panel.$element,
-				actions: [
-					{ action: 'save', label: 'OK', flags: [ 'primary', 'progressive' ] },
-					{ action: 'cancel', label: mw.msg( 'cancel' ), flags: 'safe' }
-				]
-			} ).closed.then( function ( data ) {
-				if ( data && data.action === 'save' ) {
-					resolve( textInput.getValue() );
-				} else {
-					resolve( null );
-				}
-				windowManager.$element.remove();
-			} );
-		} );
-	}
-
-	function buildBadge( entry ) {
-		var elapsed = CP.now() - entry.timestamp * 1000;
-		var isUrgent = entry.status === 'pending' && elapsed > CP.config.urgencyThreshold;
-
-		var text = CP.getStatusLabel( entry.status ) + ' — ' + entry.userText;
-		if ( entry.comment ) {
-			text += ' (' + entry.comment + ')';
+	function signature( entry ) {
+		if ( !entry ) {
+			return '';
 		}
-
-		var $label = $( '<span>' ).append(
-			$( '<strong>' ).text( text ),
-			$( '<span>' ).addClass( 'collabpatrol-badge-time' ).text( ' • ' + CP.formatTimeElapsed( elapsed ) )
-		);
-
-		return CP.buildStatusWidget( entry.status, isUrgent, $label, true );
+		return [
+			entry.status, entry.userText, entry.timestamp, entry.comment, entry.chatCount,
+			entry.history ? entry.history.length : 0,
+			// recalcule l'affichage de la durée une fois par minute
+			Math.floor( ( CP.now() - entry.timestamp * 1000 ) / 60000 )
+		].join( '|' );
 	}
 
-	function buildHistoryBlock( history ) {
-		var div = $( '<div>' ).addClass( 'collabpatrol-history' );
-		div.append( $( '<strong>' ).text( mw.msg( 'collabpatrol-history-label' ) ) );
-
-		history.forEach( function ( h ) {
-			var elapsed = CP.now() - h.timestamp * 1000;
-			var actionLabel = CP.getStatusLabel( h.action );
-			var item = $( '<div>' ).addClass( 'collabpatrol-history-item' );
-			var txt = actionLabel + ' — ' + h.userText + ' ' + CP.formatTimeElapsed( elapsed );
-			if ( h.comment ) {
-				txt += ' • ' + h.comment;
-			}
-			item.text( txt );
-			div.append( item );
+	function withDialogs( callback ) {
+		mw.loader.using( 'ext.collabPatrol.dialogs' ).then( callback, function () {
+			CP.api.fail();
 		} );
-
-		return div;
 	}
 
-	function createBtn( label, cls, onClick, icon ) {
-		var flagsByColor = {
-			green: [ 'primary', 'progressive' ],
-			yellow: [ 'progressive' ],
-			red: [ 'destructive' ],
-			grey: []
-		};
-		var button = new OO.ui.ButtonWidget( {
-			label: label,
-			icon: icon,
-			flags: flagsByColor[ cls ] || [],
-			framed: true
-		} );
-		button.on( 'click', onClick );
-		return button.$element.addClass( 'collabpatrol-btn-widget collabpatrol-btn-widget-' + cls );
-	}
-
-	function renderWrapper( revId, entry ) {
-		$( '.collabpatrol-wrapper' ).remove();
-
-		var target = $( '.mw-diff-ntitle1' ).first();
-		if ( !target.length ) {
-			target = $( '#contentSub' ).first();
-		}
-		if ( !target.length ) {
+	function prefetchDialogs() {
+		if ( prefetchDialogs.done ) {
 			return;
 		}
+		prefetchDialogs.done = true;
+		( mw.requestIdleCallback || function ( fn ) {
+			setTimeout( fn, 1500 );
+		} )( function () {
+			mw.loader.load( 'ext.collabPatrol.dialogs' );
+		} );
+	}
 
-		var hookName = null;
-		var wrapper = $( '<div>' ).addClass( 'collabpatrol-wrapper' );
-		if ( CP.config.compactMode ) {
-			wrapper.addClass( 'collabpatrol-wrapper-compact' );
+	/**
+	 * Lance une action d'écriture : bouton désactivé pendant l'appel, puis
+	 * redessin depuis la réponse du serveur.
+	 */
+	function act( promise, $btn, after ) {
+		state.busy = true;
+		if ( $btn ) {
+			$btn.prop( 'disabled', true ).addClass( 'cp-btn-busy' );
 		}
+		promise.then( function ( entry ) {
+			state.busy = false;
+			state.entry = entry || null;
+			state.sig = signature( state.entry );
+			if ( after ) {
+				after( entry );
+			}
+			render();
+		}, function ( code ) {
+			state.busy = false;
+			CP.api.fail( code );
+			render();
+		} );
+	}
+
+	function openChat() {
+		withDialogs( function () {
+			CP.dialogs.openChat( {
+				revId: state.revId,
+				onCount: function ( count ) {
+					if ( state.entry && state.entry.chatCount !== count ) {
+						state.entry.chatCount = count;
+						state.sig = signature( state.entry );
+						render();
+					}
+				}
+			} );
+		} );
+	}
+
+	function build( entry ) {
+		var revId = state.revId;
+		var iconOnly = CP.isMobile;
+		var $w = $( '<div>' ).addClass( 'collabpatrol-wrapper' + ( CP.isMobile ? ' cp-mobile' : '' ) );
 
 		if ( !entry ) {
-			if ( CP.isUnpatrolled() ) {
-				wrapper.append(
-					createBtn( mw.msg( 'collabpatrol-btn-flag' ), 'yellow', function () {
-						promptComment( '' ).then( function ( comment ) {
-							if ( comment === null ) {
-								return;
+			$w.addClass( 'cp-w-none' ).append( CP.w.button( {
+				icon: 'flag',
+				label: mw.msg( 'collabpatrol-btn-flag' ),
+				color: 'flag',
+				iconOnly: iconOnly,
+				onClick: function ( $btn ) {
+					withDialogs( function () {
+						CP.dialogs.promptComment( '' ).then( function ( comment ) {
+							if ( comment !== null ) {
+								act( CP.api.setStatus( revId, 'pending', comment ), $btn );
 							}
-							CP.api.setStatus( revId, 'pending', comment ).then( function () {
-								renderInterface();
-							} );
 						} );
-					}, 'flag' )
-				);
-			} else {
-				return;
-			}
-		} else {
-			var entryElapsed = CP.now() - entry.timestamp * 1000;
-			if ( entry.status === 'pending' ) {
-				wrapper.addClass( entryElapsed > CP.config.urgencyThreshold ? 'collabpatrol-wrapper-urgent' : 'collabpatrol-wrapper-pending' );
-			} else if ( entry.status === 'in_progress' ) {
-				wrapper.addClass( 'collabpatrol-wrapper-progress' );
-			} else {
-				wrapper.addClass( 'collabpatrol-wrapper-finished' );
-			}
-			wrapper.append( buildBadge( entry ) );
-
-			if ( entry.status === 'pending' ) {
-				wrapper.append( createBtn( mw.msg( 'collabpatrol-btn-take' ), 'green', function () {
-					CP.api.setStatus( revId, 'in_progress', entry.comment ).then( function () {
-						renderInterface();
 					} );
-				}, 'userAvatar' ) );
-			} else if ( entry.status === 'in_progress' ) {
-				wrapper.append( createBtn( mw.msg( 'collabpatrol-btn-finish' ), 'green', function () {
-					CP.api.setStatus( revId, 'finished', entry.comment ).then( function () {
+				}
+			} ) );
+			return $w;
+		}
+
+		var elapsed = CP.now() - entry.timestamp * 1000;
+		var urgent = entry.status === 'pending' && elapsed > CP.config.urgencyThreshold;
+		$w.addClass( 'cp-w-' + CP.getStatusMeta( entry.status, urgent ).cls );
+
+		var $badge = CP.w.statusBadge( entry, { compact: iconOnly, showComment: !iconOnly } );
+		if ( iconOnly ) {
+			// Pas de survol au tactile : toucher la pastille ouvre le détail
+			$badge.attr( { role: 'button', tabindex: 0 } ).on( 'click keydown', function ( e ) {
+				if ( e.type === 'keydown' && e.key !== 'Enter' ) {
+					return;
+				}
+				withDialogs( function () {
+					CP.dialogs.showDetails( entry );
+				} );
+			} );
+		}
+		$w.append( $badge );
+
+		var $actions = $( '<span>' ).addClass( 'cp-actions' );
+
+		if ( entry.status === 'pending' ) {
+			$actions.append( CP.w.button( {
+				icon: 'eye',
+				label: mw.msg( 'collabpatrol-btn-take' ),
+				color: 'take',
+				iconOnly: iconOnly,
+				onClick: function ( $btn ) {
+					act( CP.api.setStatus( revId, 'in_progress', entry.comment ), $btn );
+				}
+			} ) );
+		} else if ( entry.status === 'in_progress' ) {
+			$actions.append( CP.w.button( {
+				icon: 'check',
+				label: mw.msg( 'collabpatrol-btn-finish' ),
+				color: 'finish',
+				iconOnly: iconOnly,
+				onClick: function ( $btn ) {
+					act( CP.api.setStatus( revId, 'finished', entry.comment ), $btn, function () {
 						if ( CP.config.notifyFinished ) {
 							mw.notify( mw.msg( 'collabpatrol-notify-patrolled' ) );
 						}
-						renderInterface();
 					} );
-				}, 'check' ) );
-			}
-
-			if ( CP.config.isAdmin || entry.userText === CP.userName ) {
-				wrapper.append( createBtn( mw.msg( 'collabpatrol-btn-cancel' ), 'grey', function () {
-					if ( !window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
-						return;
-					}
-					CP.api.removeEntry( revId ).then( function () {
-						renderInterface();
-					} );
-				}, 'close' ) );
-			}
-
-			if ( CP.config.isAdmin && entry.userText ) {
-				wrapper.append( createBtn( mw.msg( 'collabpatrol-btn-ban' ), 'red', function () {
-					if ( !window.confirm( mw.msg( 'collabpatrol-confirm-ban' ) + ' ' + entry.userText + ' ?' ) ) {
-						return;
-					}
-					var blockUrl = mw.util.getUrl( 'Special:Block/' + entry.userText );
-					window.open( blockUrl, '_blank' );
-				}, 'block' ) );
-			}
-
-			if ( CP.config.showHistory && entry.history && entry.history.length > 1 ) {
-				wrapper.append( buildHistoryBlock( entry.history ) );
-			}
-
-			hookName = entry.status !== 'finished' ? 'collabpatrol.entryActive' : 'collabpatrol.entryFinished';
+				}
+			} ) );
 		}
 
-		if ( target.hasClass( 'mw-diff-ntitle1' ) ) {
-			target.append( wrapper );
-		} else {
-			target.after( wrapper );
+		if ( entry.status !== 'finished' && CP.config.chatEnabled ) {
+			var $chat = CP.w.button( {
+				icon: 'speechBubbles',
+				label: mw.msg( 'collabpatrol-chat-title' ),
+				color: 'neutral',
+				iconOnly: iconOnly,
+				onClick: openChat
+			} );
+			if ( entry.chatCount > 0 ) {
+				$chat.append( $( '<span>' ).addClass( 'cp-badge-count' ).text( entry.chatCount > 99 ? '99+' : entry.chatCount ) );
+			}
+			$actions.append( $chat );
+			prefetchDialogs();
 		}
 
-		// Les hooks sont déclenchés APRÈS l'insertion du wrapper : le chat peut ainsi s'y rattacher
-		if ( hookName ) {
-			mw.hook( hookName ).fire( revId, entry );
+		var hasHistory = CP.config.showHistory && entry.history && entry.history.length > 1;
+		if ( iconOnly && hasHistory ) {
+			$actions.append( CP.w.button( {
+				icon: 'history',
+				label: mw.msg( 'collabpatrol-history-label' ),
+				color: 'neutral',
+				iconOnly: true,
+				onClick: function () {
+					withDialogs( function () {
+						CP.dialogs.showDetails( entry );
+					} );
+				}
+			} ) );
+		}
+
+		if ( CP.config.isAdmin || entry.userText === CP.userName ) {
+			$actions.append( CP.w.button( {
+				icon: 'close',
+				label: mw.msg( 'collabpatrol-btn-cancel' ),
+				color: 'cancel',
+				iconOnly: iconOnly,
+				onClick: function ( $btn ) {
+					if ( window.confirm( mw.msg( 'collabpatrol-confirm-remove' ) ) ) {
+						act( CP.api.removeEntry( revId ).then( function () {
+							return null;
+						} ), $btn );
+					}
+				}
+			} ) );
+		}
+
+		$w.append( $actions );
+
+		if ( !iconOnly && hasHistory ) {
+			$w.append( CP.w.historyBlock( entry.history ) );
+		}
+		return $w;
+	}
+
+	function mount( $w ) {
+		var $old = $( '.collabpatrol-wrapper' );
+		if ( $old.length ) {
+			$old.not( ':first' ).remove();
+			$old.first().replaceWith( $w );
+			return;
+		}
+		var $target;
+		if ( CP.isMobile ) {
+			$target = $( '.content, #mw-content-text' ).first();
+			if ( $target.length ) {
+				$target.prepend( $w );
+			}
+			return;
+		}
+		$target = $( '.mw-diff-ntitle1' ).first();
+		if ( $target.length ) {
+			$target.append( $w );
+			return;
+		}
+		$target = $( '#contentSub' ).first();
+		if ( $target.length ) {
+			$target.after( $w );
 		}
 	}
 
-	function renderInterface() {
+	function render() {
+		if ( !state.entry && !CP.isUnpatrolled() ) {
+			$( '.collabpatrol-wrapper' ).remove();
+			return;
+		}
+		mount( build( state.entry ) );
+		if ( !render.hashHandled && state.entry && window.location.hash === '#cp-chat' ) {
+			render.hashHandled = true;
+			if ( state.entry.status !== 'finished' && CP.config.chatEnabled ) {
+				openChat();
+			}
+		}
+	}
+
+	function refresh() {
+		if ( state.busy ) {
+			return;
+		}
+		CP.api.getEntry( state.revId ).then( function ( entry ) {
+			var sig = signature( entry );
+			if ( !state.busy && sig !== state.sig ) {
+				state.entry = entry;
+				state.sig = sig;
+				render();
+			}
+		} );
+	}
+
+	function start() {
+		if ( state.started ) {
+			render();
+			return;
+		}
 		var revId = CP.getRevId();
 		if ( !revId ) {
 			return;
 		}
-		CP.api.getEntry( revId ).then( function ( entry ) {
-			renderWrapper( revId, entry );
-		} );
+		state.started = true;
+		state.revId = revId;
+
+		var initial = mw.config.get( 'wgCollabPatrolInitial' );
+		if ( initial && Number( initial.revId ) === Number( revId ) ) {
+			// Données fournies par le serveur : affichage immédiat
+			state.entry = initial.entry || null;
+			state.sig = signature( state.entry );
+			render();
+		} else {
+			CP.api.getEntry( revId ).then( function ( entry ) {
+				state.entry = entry;
+				state.sig = signature( entry );
+				render();
+			} );
+		}
+
+		CP.poll( refresh, CP.config.refreshInterval );
 	}
 
-	CP.renderDesktopInterface = renderInterface;
-
-	mw.hook( 'wikipage.content' ).add( function () {
-		var revId = CP.getRevId();
-		if ( revId ) {
-			renderInterface();
-		}
-	} );
+	mw.hook( 'wikipage.content' ).add( start );
 
 }() );
-
-
-
-
-

@@ -37,7 +37,7 @@ class SpecialCollabPatrol extends SpecialPage {
 		$this->checkPermissions();
 		$out = $this->getOutput();
 
-		$out->addModules( [ 'ext.collabPatrol', 'ext.collabPatrol.special' ] );
+		$out->addModules( [ 'ext.collabPatrol.special' ] );
 
 		if ( $subPage === 'stats' ) {
 			$this->renderStats( $out );

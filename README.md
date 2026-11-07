@@ -29,7 +29,7 @@ The idea is simple: instead of patrolling alone, patrollers can flag a revision 
 |---|---|---|
 | `collabpatrol-use` | `patroller`, `sysop` | Flag, take and finish patrol entries |
 | `collabpatrol-admin` | `sysop` | Manage entries and moderate the chat |
-| `collabpatrol-chatmod` | `sysop` | Moderate chat and manage chat bans without full patrol admin |
+| `collabpatrol-chatmod` | `sysop` | Moderate (delete) chat messages without full patrol admin |
 
 You can override these in `LocalSettings.php`:
 ```php
@@ -48,7 +48,7 @@ All settings go in `LocalSettings.php`.
 | `$wgCollabPatrolUrgencyThreshold` | `3600` (1 h) | Seconds before a pending entry is marked urgent |
 | `$wgCollabPatrolAutoPatrol` | `true` | Automatically mark the revision as patrolled when status is set to *finished* |
 | `$wgCollabPatrolEnableEcho` | `true` | Send Echo notifications when someone is @mentioned in the patrol chat |
-| `$wgCollabPatrolChatEnabled` | `true` | Enable the per-diff discussion panel |
+| `$wgCollabPatrolChatEnabled` | `true` | Enable the per-diff discussion popup |
 | `$wgCollabPatrolChatMaxLength` | `500` | Maximum character length for a chat message |
 | `$wgCollabPatrolChatModerators` | `[]` | Optional additional usernames allowed to moderate chat |
 | `$wgCollabPatrolChatBannedWords` | `[]` | Words forbidden in chat messages (case-insensitive) |
@@ -69,15 +69,13 @@ Each user can configure CollabPatrol in `Special:Preferences`, under Appearance 
 |---|---|---|
 | Auto-refresh interval | 30 seconds | Refresh interval for RC markers, dashboard and chat |
 | Show notification after finishing an entry | Enabled | Show a completion notification when an entry is marked finished |
-| Open discussion panel by default | Disabled | Open chat automatically on active entries |
 | Show history block on entries | Enabled | Display or hide entry history in diff interfaces |
-| Use compact layout for controls | Disabled | Reduce spacing in desktop and mobile controls |
 
 ## Mentions and Echo
 
 In the discussion panel, type `@` followed by a username to get suggestions. Mentions are written `@Username` (underscores stand for spaces) or `@[User Name]`. Existing users are highlighted in the message, and messages mentioning you are marked.
 
-If the [Echo](https://www.mediawiki.org/wiki/Extension:Echo) extension is installed and `$wgCollabPatrolEnableEcho` is `true`, every mentioned user who holds the `collabpatrol-use` right receives a notification (up to 5 per message, the author is never notified). The link opens the diff with the discussion panel already open. Users can opt out in `Special:Preferences` > Notifications (category *Patrol chat mentions*). Echo is optional: without it, mentions are still highlighted.
+If the [Echo](https://www.mediawiki.org/wiki/Extension:Echo) extension is installed and `$wgCollabPatrolEnableEcho` is `true`, every mentioned user who holds the `collabpatrol-use` right receives a notification (up to 5 per message, the author is never notified). The link opens the diff with the discussion popup already open. Users can opt out in `Special:Preferences` > Notifications (category *Patrol chat mentions*). Echo is optional: without it, mentions are still highlighted.
 
 ## How it works
 
@@ -97,3 +95,11 @@ The dashboard at `Special:CollabPatrol` shows all active entries, their status, 
 
 ## Credits
 Thanks to [Janus](https://github.com/janusdevikidia) to the UI refont when COllabPatrol was a gadget on Vikidia.
+
+## Blocks
+
+CollabPatrol has no block system of its own (it was removed in 1.2.0). Every write
+action (`set`, `remove`, `chat_post`, `chat_delete`) re-checks, at the moment it is
+performed, that the user is not blocked on the wiki (sitewide block). A blocked user
+gets an error message and the action is refused. The `collab_patrol_chat_ban` table is
+dropped by `php maintenance/run.php update`.

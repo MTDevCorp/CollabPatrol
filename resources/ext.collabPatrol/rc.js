@@ -1,3 +1,10 @@
+/**
+ * CollabPatrol — pastilles et compteur sur Modifications récentes / Liste de suivi.
+ *
+ * Les pastilles sont déjà posées par le serveur (une seule requête SQL groupée) ;
+ * ce script ne fait qu'un appel groupé pour le compteur et pour garder les
+ * pastilles à jour (nouvelles lignes, changement d'état).
+ */
 ( function () {
 	'use strict';
 
@@ -8,111 +15,120 @@
 		return;
 	}
 
-	function collectRevIds() {
-		var ids = [];
-		$( '.mw-changeslist-line a, .mw-enhanced-rc-nested a' ).each( function () {
-			var href = $( this ).attr( 'href' ) || '';
-			var match = href.match( /[?&](diff|oldid)=(\d+)/ );
-			if ( match ) {
-				var id = parseInt( match[ 2 ], 10 );
-				if ( ids.indexOf( id ) === -1 ) {
-					ids.push( id );
+	var counterSig = '';
+
+	/** @return {Object} revId => [ lignes DOM ] */
+	function collectLines() {
+		var map = {};
+		var found = false;
+		$( '.mw-changeslist-line[data-mw-revid]' ).each( function () {
+			var id = parseInt( this.getAttribute( 'data-mw-revid' ), 10 );
+			if ( id ) {
+				found = true;
+				( map[ id ] = map[ id ] || [] ).push( this );
+			}
+		} );
+		if ( found ) {
+			return map;
+		}
+		// Repli : lecture des liens diff/oldid
+		$( '.mw-changeslist-line' ).each( function () {
+			var line = this;
+			$( line ).find( 'a' ).each( function () {
+				var m = ( $( this ).attr( 'href' ) || '' ).match( /[?&](?:diff|oldid)=(\d+)/ );
+				if ( m ) {
+					var id = parseInt( m[ 1 ], 10 );
+					map[ id ] = map[ id ] || [];
+					if ( map[ id ].indexOf( line ) === -1 ) {
+						map[ id ].push( line );
+					}
+					return false;
 				}
-			}
+			} );
 		} );
-		return ids;
+		return map;
 	}
 
-	function renderDots( entries ) {
-		$( '.collabpatrol-rc-dot' ).remove();
-		$( '.mw-changeslist-line a, .mw-enhanced-rc-nested a' ).each( function () {
-			var href = $( this ).attr( 'href' ) || '';
-			var match = href.match( /[?&](diff|oldid)=(\d+)/ );
-			if ( !match ) {
-				return;
-			}
-			var id = parseInt( match[ 2 ], 10 );
+	function updateDots( lines, entries ) {
+		Object.keys( lines ).forEach( function ( id ) {
 			var entry = entries[ id ];
-			if ( !entry ) {
-				return;
-			}
-
-			var dotClass = entry.status === 'pending'
-				? 'collabpatrol-rc-dot-pending'
-				: 'collabpatrol-rc-dot-progress';
-			var title = CP.getStatusLabel( entry.status );
-			if ( entry.comment ) {
-				title += ': ' + entry.comment;
-			}
-
-			var dot = $( '<span>' )
-				.addClass( 'collabpatrol-rc-dot ' + dotClass )
-				.text( '●' )
-				.attr( 'title', title );
-
-			if ( $( this ).prev( '.collabpatrol-rc-dot' ).length === 0 ) {
-				$( this ).before( dot );
-			}
+			var active = entry && ( entry.status === 'pending' || entry.status === 'in_progress' );
+			lines[ id ].forEach( function ( line ) {
+				var $title = $( line ).find( '.mw-changeslist-title' ).first();
+				if ( !$title.length ) {
+					return;
+				}
+				var $dot = $title.prev( '.collabpatrol-rc-dot' );
+				if ( !active ) {
+					$dot.remove();
+					return;
+				}
+				var cls = entry.status === 'pending' ? 'pending' : 'progress';
+				var title = CP.getStatusLabel( entry.status ) + ( entry.comment ? ' : ' + entry.comment : '' );
+				if ( !$dot.length ) {
+					$dot = $( '<span>' ).attr( 'role', 'img' );
+					$title.before( $dot, ' ' );
+				}
+				$dot.attr( { title: title, 'aria-label': title } )
+					.attr( 'class', 'collabpatrol-rc-dot collabpatrol-rc-dot-' + cls );
+			} );
 		} );
 	}
 
-	function renderCounter( entries ) {
-		$( '.collabpatrol-rc-counter' ).remove();
-
+	function updateCounter( entries ) {
 		var pending = 0;
-		var inProgress = 0;
+		var progress = 0;
 		Object.keys( entries ).forEach( function ( id ) {
 			if ( entries[ id ].status === 'pending' ) {
 				pending++;
 			} else if ( entries[ id ].status === 'in_progress' ) {
-				inProgress++;
+				progress++;
 			}
 		} );
 
-		var counter = $( '<div>' ).addClass( 'collabpatrol-rc-counter' );
-		counter.html(
-			'<span class="collabpatrol-rc-counter-pending">🔴 ' +
-			mw.msg( 'collabpatrol-counter-pending', pending ) +
-			'</span> | <span class="collabpatrol-rc-counter-progress">🟡 ' +
-			mw.msg( 'collabpatrol-counter-progress', inProgress ) +
-			'</span>'
+		var sig = pending + '|' + progress;
+		if ( sig === counterSig && $( '.collabpatrol-rc-counter' ).length ) {
+			return;
+		}
+		counterSig = sig;
+		$( '.collabpatrol-rc-counter' ).remove();
+
+		var $counter = $( '<div>' ).addClass( 'collabpatrol-rc-counter' ).append(
+			$( '<span>' ).addClass( 'collabpatrol-rc-counter-pending' ).append(
+				$( '<span>' ).addClass( 'collabpatrol-rc-dot collabpatrol-rc-dot-pending' ),
+				' ' + mw.msg( 'collabpatrol-counter-pending', pending )
+			),
+			$( '<span>' ).addClass( 'collabpatrol-rc-counter-progress' ).append(
+				$( '<span>' ).addClass( 'collabpatrol-rc-dot collabpatrol-rc-dot-progress' ),
+				' ' + mw.msg( 'collabpatrol-counter-progress', progress )
+			),
+			$( '<a>' ).addClass( 'collabpatrol-rc-dash-link' )
+				.attr( 'href', mw.util.getUrl( 'Special:CollabPatrol' ) )
+				.text( mw.msg( 'collabpatrol-dashboard-title' ) )
 		);
 
-		var dashLink = $( '<a>' )
-			.addClass( 'collabpatrol-rc-dash-link' )
-			.attr( 'href', mw.util.getUrl( 'Special:CollabPatrol' ) )
-			.text( '📋 ' + mw.msg( 'collabpatrol-dashboard-title' ) );
-
-		counter.append( ' ' ).append( dashLink );
-
-		var target = $( '.mw-rcfilters-ui-top-section' ).first();
-		if ( !target.length ) {
-			target = $( '#contentSub' ).first();
+		var $target = $( '.mw-rcfilters-ui-top-section' ).first();
+		if ( !$target.length ) {
+			$target = $( '#contentSub' ).first();
 		}
-		if ( target.length ) {
-			target.append( counter );
-		}
+		$target.append( $counter );
 	}
 
 	function updateRC() {
-		var revIds = collectRevIds();
-		if ( !revIds.length ) {
+		var lines = collectLines();
+		var ids = Object.keys( lines ).map( Number );
+		if ( !ids.length ) {
 			return;
 		}
-		CP.api.batchGet( revIds ).then( function ( entries ) {
-			renderDots( entries );
+		CP.api.batchGet( ids ).then( function ( entries ) {
+			updateDots( lines, entries );
 			if ( canonicalPage === 'Recentchanges' ) {
-				renderCounter( entries );
+				updateCounter( entries );
 			}
 		} );
 	}
 
-	mw.hook( 'wikipage.content' ).add( function () {
-		updateRC();
-	} );
-
-	if ( CP.config.refreshInterval > 0 ) {
-		setInterval( updateRC, CP.config.refreshInterval );
-	}
+	mw.hook( 'wikipage.content' ).add( updateRC );
+	CP.poll( updateRC, CP.config.refreshInterval );
 
 }() );

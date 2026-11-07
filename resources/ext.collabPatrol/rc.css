@@ -1,0 +1,37 @@
+/* CollabPatrol — pastilles et compteur des Modifications récentes (chargé en <head>). */
+
+.collabpatrol-rc-dot {
+	display: inline-block;
+	width: 0.65em;
+	height: 0.65em;
+	margin-right: 0.15em;
+	border-radius: 50%;
+	background: #72777d;
+	vertical-align: middle;
+}
+
+.collabpatrol-rc-dot-pending { background: #d69200; }
+.collabpatrol-rc-dot-progress { background: #36c; }
+
+.collabpatrol-rc-counter {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 14px;
+	box-sizing: border-box;
+	margin-top: 6px;
+	padding: 3px 10px;
+	border: 1px solid var( --border-color-subtle, #c8ccd1 );
+	border-radius: 2px;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	font-size: 0.8125em;
+}
+
+.collabpatrol-rc-counter-pending,
+.collabpatrol-rc-counter-progress {
+	font-weight: 600;
+}
+
+.collabpatrol-rc-counter .collabpatrol-rc-dot {
+	margin-right: 0.3em;
+}
