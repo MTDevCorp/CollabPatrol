@@ -56,6 +56,7 @@
 	 * @param {Object} [o]
 	 * @param {boolean} [o.compact] Pas de libellé de statut (l'icône suffit)
 	 * @param {boolean} [o.showComment]
+	 * @param {boolean} [o.hideUser] Pas de nom d'utilisateur (déjà affiché ailleurs)
 	 * @return {jQuery}
 	 */
 	function statusBadge( entry, o ) {
@@ -66,7 +67,7 @@
 		var label = CP.getStatusLabel( entry.status );
 		var time = CP.formatTimeElapsed( elapsed );
 
-		var tooltip = label + ' — ' + entry.userText + ' • ' + time +
+		var tooltip = label + ( o.hideUser ? '' : ' — ' + entry.userText ) + ' • ' + time +
 			( entry.comment ? '\n' + entry.comment : '' );
 
 		var $badge = $( '<span>' )
@@ -76,9 +77,14 @@
 
 		var $text = $( '<span>' ).addClass( 'cp-status-text' );
 		if ( !o.compact ) {
-			$text.append( $( '<strong>' ).text( label ), ' — ' );
+			$text.append( $( '<strong>' ).text( label ) );
+			if ( !o.hideUser ) {
+				$text.append( ' — ' );
+			}
 		}
-		$text.append( document.createTextNode( entry.userText ) );
+		if ( !o.hideUser ) {
+			$text.append( document.createTextNode( entry.userText ) );
+		}
 		$text.append( $( '<span>' ).addClass( 'cp-status-time' ).text( ' • ' + time ) );
 		if ( o.showComment && entry.comment ) {
 			$text.append( $( '<span>' ).addClass( 'cp-status-comment' ).text( ' (' + entry.comment + ')' ) );
