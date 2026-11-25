@@ -3,11 +3,20 @@
 namespace MediaWiki\Extension\CollabPatrol;
 
 use MediaWiki\Config\Config;
+use MediaWiki\MediaWikiServices;
 use MediaWiki\User\UserIdentity;
 use Wikimedia\Rdbms\ILoadBalancer;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 class CollabPatrolStore {
+
+	/** Seconds during which the dashboard statistics are cached. */
+	private const STATS_TTL = 60;
+
+	private const ENTRY_FIELDS = [
+		'cp_rev_id', 'cp_page_id', 'cp_status', 'cp_user_id', 'cp_user_text',
+		'cp_comment', 'cp_timestamp', 'cp_expires',
+	];
 
 	private ILoadBalancer $lb;
 	private Config $config;
@@ -17,29 +26,51 @@ class CollabPatrolStore {
 		$this->config = $config;
 	}
 
-	public function getEntry( int $revId ): ?array {
-		$db = $this->lb->getConnection( DB_REPLICA );
+	/**
+	 * Builds a store from the global services (hooks, jobs, maintenance scripts).
+	 */
+	public static function newFromServices(): self {
+		$services = MediaWikiServices::getInstance();
+		return new self( $services->getDBLoadBalancer(), $services->getMainConfig() );
+	}
+
+	public function getEntry( int $revId, bool $fromPrimary = false ): ?array {
+		$db = $this->lb->getConnection( $fromPrimary ? DB_PRIMARY : DB_REPLICA );
 		$row = $db->selectRow(
 			'collab_patrol',
-			'*',
+			self::ENTRY_FIELDS,
 			[ 'cp_rev_id' => $revId ],
 			__METHOD__
 		);
-		if ( !$row ) {
+		return $row ? $this->rowToArray( $row ) : null;
+	}
+
+	/**
+	 * Entry + history + number of visible chat messages, in one call.
+	 * Everything the client needs to draw the interface without a second request.
+	 */
+	public function getEntryFull( int $revId, bool $fromPrimary = false ): ?array {
+		$entry = $this->getEntry( $revId, $fromPrimary );
+		if ( !$entry ) {
 			return null;
 		}
-		return $this->rowToArray( $row );
+		$entry['history'] = $this->getHistory( $revId, $fromPrimary );
+		$entry['chatCount'] = $entry['status'] === 'finished'
+			? 0
+			: $this->getChatCount( $revId, $fromPrimary );
+		return $entry;
 	}
 
 	public function getEntriesByStatus( string $status, int $limit = 100 ): array {
 		$db = $this->lb->getConnection( DB_REPLICA );
-		$conds = [];
+		// A finished entry is no longer listed (a reviewed diff needs no review).
+		$conds = [ 'cp_status != ' . $db->addQuotes( 'finished' ) ];
 		if ( $status !== 'all' ) {
 			$conds['cp_status'] = $status;
 		}
 		$res = $db->select(
 			'collab_patrol',
-			'*',
+			self::ENTRY_FIELDS,
 			$conds,
 			__METHOD__,
 			[ 'ORDER BY' => 'cp_timestamp DESC', 'LIMIT' => $limit ]
@@ -51,6 +82,10 @@ class CollabPatrolStore {
 		return $entries;
 	}
 
+	/**
+	 * @param int[] $revIds
+	 * @return array[] Entries keyed by revision ID
+	 */
 	public function getEntriesForRevisions( array $revIds ): array {
 		if ( !$revIds ) {
 			return [];
@@ -58,7 +93,7 @@ class CollabPatrolStore {
 		$db = $this->lb->getConnection( DB_REPLICA );
 		$res = $db->select(
 			'collab_patrol',
-			'*',
+			self::ENTRY_FIELDS,
 			[ 'cp_rev_id' => $revIds ],
 			__METHOD__
 		);
@@ -69,8 +104,25 @@ class CollabPatrolStore {
 		return $entries;
 	}
 
+	/**
+	 * Creates or updates an entry.
+	 *
+	 * A revision that has been reviewed ("finished") needs no further review: its
+	 * entry is deleted (so it disappears from the dashboard and from the diff
+	 * interface). Only the history row remains, which is what the statistics use.
+	 */
 	public function upsertEntry( int $revId, int $pageId, string $status, UserIdentity $user, string $comment ): bool {
 		$db = $this->lb->getConnection( DB_PRIMARY );
+
+		if ( $status === 'finished' ) {
+			$db->delete( 'collab_patrol', [ 'cp_rev_id' => $revId ], __METHOD__ );
+			$this->addHistoryEntry( $revId, $status, $user, $comment );
+			if ( $this->config->get( 'CollabPatrolChatAutoDelete' ) ) {
+				$this->deleteChatForRevision( $revId );
+			}
+			return true;
+		}
+
 		$expirationSeconds = $this->config->get( 'CollabPatrolExpirationDelay' );
 		$now = ConvertibleTimestamp::now( TS_MW );
 		$expires = wfTimestamp( TS_MW, time() + $expirationSeconds );
@@ -101,26 +153,31 @@ class CollabPatrolStore {
 
 		$this->addHistoryEntry( $revId, $status, $user, $comment );
 
-		if ( $status === 'finished' && $this->config->get( 'CollabPatrolChatAutoDelete' ) ) {
-			$this->deleteChatForRevision( $revId );
-		}
-
 		return true;
 	}
 
-	public function deleteEntry( int $revId ): bool {
+	/**
+	 * Removes an entry. The removal is recorded in the history ("removed") when
+	 * an entry actually existed.
+	 */
+	public function deleteEntry( int $revId, ?UserIdentity $user = null ): bool {
 		$db = $this->lb->getConnection( DB_PRIMARY );
 		$db->delete(
 			'collab_patrol',
 			[ 'cp_rev_id' => $revId ],
 			__METHOD__
 		);
+		$existed = $db->affectedRows() > 0;
+
+		if ( $existed && $user ) {
+			$this->addHistoryEntry( $revId, 'removed', $user, '' );
+		}
 
 		if ( $this->config->get( 'CollabPatrolChatAutoDelete' ) ) {
 			$this->deleteChatForRevision( $revId );
 		}
 
-		return true;
+		return $existed;
 	}
 
 	public function addHistoryEntry( int $revId, string $action, UserIdentity $user, string $comment ): void {
@@ -139,14 +196,14 @@ class CollabPatrolStore {
 		);
 	}
 
-	public function getHistory( int $revId ): array {
-		$db = $this->lb->getConnection( DB_REPLICA );
+	public function getHistory( int $revId, bool $fromPrimary = false ): array {
+		$db = $this->lb->getConnection( $fromPrimary ? DB_PRIMARY : DB_REPLICA );
 		$res = $db->select(
 			'collab_patrol_history',
-			'*',
+			[ 'cph_action', 'cph_user_id', 'cph_user_text', 'cph_comment', 'cph_timestamp' ],
 			[ 'cph_rev_id' => $revId ],
 			__METHOD__,
-			[ 'ORDER BY' => 'cph_timestamp ASC' ]
+			[ 'ORDER BY' => 'cph_id ASC', 'LIMIT' => 100 ]
 		);
 		$history = [];
 		foreach ( $res as $row ) {
@@ -155,13 +212,28 @@ class CollabPatrolStore {
 				'userId' => (int)$row->cph_user_id,
 				'userText' => $row->cph_user_text,
 				'comment' => $row->cph_comment,
-				'timestamp' => wfTimestamp( TS_UNIX, $row->cph_timestamp ),
+				'timestamp' => (int)wfTimestamp( TS_UNIX, $row->cph_timestamp ),
 			];
 		}
 		return $history;
 	}
 
+	/**
+	 * Dashboard statistics, cached for a short time (the page is read far more
+	 * often than the numbers change).
+	 */
 	public function getStats(): array {
+		$cache = MediaWikiServices::getInstance()->getMainWANObjectCache();
+		return $cache->getWithSetCallback(
+			$cache->makeKey( 'collabpatrol', 'stats', 'v2' ),
+			self::STATS_TTL,
+			function () {
+				return $this->computeStats();
+			}
+		);
+	}
+
+	private function computeStats(): array {
 		$db = $this->lb->getConnection( DB_REPLICA );
 		$counts = [];
 		$res = $db->select(
@@ -175,56 +247,124 @@ class CollabPatrolStore {
 			$counts[$row->cp_status] = (int)$row->count;
 		}
 
+		// Everything below comes from the history: a reviewed entry is deleted from
+		// collab_patrol, but its history rows stay.
 		$total = $db->selectField( 'collab_patrol_history', 'COUNT(*)', [], __METHOD__ );
-		$topRes = $db->select(
+		$finished = $db->selectField(
 			'collab_patrol_history',
-			[ 'cph_user_text', 'actions' => 'COUNT(*)' ],
+			'COUNT(*)',
 			[ 'cph_action' => 'finished' ],
-			__METHOD__,
-			[ 'GROUP BY' => 'cph_user_text', 'ORDER BY' => 'actions DESC', 'LIMIT' => 10 ]
+			__METHOD__
 		);
-		$topPatrollers = [];
-		foreach ( $topRes as $row ) {
-			$topPatrollers[] = [
-				'user' => $row->cph_user_text,
-				'count' => (int)$row->actions,
-			];
-		}
 
 		return [
 			'pending' => $counts['pending'] ?? 0,
 			'in_progress' => $counts['in_progress'] ?? 0,
-			'finished' => $counts['finished'] ?? 0,
+			'finished' => (int)$finished,
 			'totalHistory' => (int)$total,
-			'topPatrollers' => $topPatrollers,
+			// Who completed the most reviews
+			'topReviewers' => $this->getTopUsers( 'finished', 'COUNT(*)' ),
+			// Who asked for the most reviews (distinct revisions: re-flagging the same diff counts once)
+			'topRequesters' => $this->getTopUsers( 'pending', 'COUNT(DISTINCT cph_rev_id)' ),
 		];
+	}
+
+	/**
+	 * @param string $action History action to count
+	 * @param string $countExpr SQL aggregate
+	 * @return array[] List of [ 'user' => string, 'count' => int ], best first
+	 */
+	private function getTopUsers( string $action, string $countExpr, int $limit = 10 ): array {
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			'collab_patrol_history',
+			[ 'cph_user_text', 'actions' => $countExpr ],
+			[ 'cph_action' => $action ],
+			__METHOD__,
+			[ 'GROUP BY' => 'cph_user_text', 'ORDER BY' => [ 'actions DESC', 'cph_user_text ASC' ], 'LIMIT' => $limit ]
+		);
+		$top = [];
+		foreach ( $res as $row ) {
+			$top[] = [
+				'user' => $row->cph_user_text,
+				'count' => (int)$row->actions,
+			];
+		}
+		return $top;
 	}
 
 	public function purgeExpired(): int {
 		$db = $this->lb->getConnection( DB_PRIMARY );
 		$now = ConvertibleTimestamp::now( TS_MW );
-		$db->delete(
-			'collab_patrol',
-			[ 'cp_expires < ' . $db->addQuotes( $now ) ],
-			__METHOD__
-		);
-		return $db->affectedRows();
+		$cond = [ 'cp_expires < ' . $db->addQuotes( $now ) ];
+
+		// Also clean the chat of the expired entries (nothing else would ever delete it).
+		$expiredIds = $db->selectFieldValues( 'collab_patrol', 'cp_rev_id', $cond, __METHOD__ );
+
+		$db->delete( 'collab_patrol', $cond, __METHOD__ );
+		$count = $db->affectedRows();
+
+		if ( $expiredIds ) {
+			$db->delete(
+				'collab_patrol_chat',
+				[ 'cpc_rev_id' => array_map( 'intval', $expiredIds ) ],
+				__METHOD__
+			);
+		}
+		return $count;
 	}
 
-	public function getChatMessages( int $revId ): array {
+	/**
+	 * Chat messages of a revision, oldest first.
+	 *
+	 * @param int $revId
+	 * @param int $afterId Only return messages with an ID greater than this (incremental polling)
+	 */
+	public function getChatMessages( int $revId, int $afterId = 0 ): array {
 		$db = $this->lb->getConnection( DB_REPLICA );
+		$conds = [ 'cpc_rev_id' => $revId ];
+		if ( $afterId > 0 ) {
+			$conds[] = 'cpc_id > ' . (int)$afterId;
+		}
 		$res = $db->select(
 			'collab_patrol_chat',
 			'*',
-			[ 'cpc_rev_id' => $revId ],
+			$conds,
 			__METHOD__,
-			[ 'ORDER BY' => 'cpc_timestamp ASC', 'LIMIT' => 200 ]
+			[ 'ORDER BY' => 'cpc_id ASC', 'LIMIT' => 200 ]
 		);
 		$messages = [];
 		foreach ( $res as $row ) {
 			$messages[] = $this->chatRowToArray( $row );
 		}
 		return $messages;
+	}
+
+	/**
+	 * IDs (<= $maxId) of the deleted messages of a revision, so that a client that
+	 * already displayed them can turn them into tombstones.
+	 *
+	 * @return int[]
+	 */
+	public function getDeletedChatIds( int $revId, int $maxId ): array {
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$ids = $db->selectFieldValues(
+			'collab_patrol_chat',
+			'cpc_id',
+			[ 'cpc_rev_id' => $revId, 'cpc_deleted' => 1, 'cpc_id <= ' . (int)$maxId ],
+			__METHOD__
+		);
+		return array_map( 'intval', $ids );
+	}
+
+	public function getChatCount( int $revId, bool $fromPrimary = false ): int {
+		$db = $this->lb->getConnection( $fromPrimary ? DB_PRIMARY : DB_REPLICA );
+		return (int)$db->selectField(
+			'collab_patrol_chat',
+			'COUNT(*)',
+			[ 'cpc_rev_id' => $revId, 'cpc_deleted' => 0 ],
+			__METHOD__
+		);
 	}
 
 	public function addChatMessage( int $revId, UserIdentity $user, string $message ): int {
@@ -270,6 +410,29 @@ class CollabPatrolStore {
 		);
 	}
 
+	/**
+	 * @param string[] $names Normalized user names
+	 * @return int[] Map of existing user name => user ID
+	 */
+	public function getUserIdsByName( array $names ): array {
+		$names = array_values( array_unique( array_map( 'strval', $names ) ) );
+		if ( !$names ) {
+			return [];
+		}
+		$db = $this->lb->getConnection( DB_REPLICA );
+		$res = $db->select(
+			'user',
+			[ 'user_id', 'user_name' ],
+			[ 'user_name' => $names ],
+			__METHOD__
+		);
+		$ids = [];
+		foreach ( $res as $row ) {
+			$ids[$row->user_name] = (int)$row->user_id;
+		}
+		return $ids;
+	}
+
 	public function getChatMessage( int $msgId ): ?array {
 		$db = $this->lb->getConnection( DB_REPLICA );
 		$row = $db->selectRow(
@@ -281,89 +444,6 @@ class CollabPatrolStore {
 		return $row ? $this->chatRowToArray( $row ) : null;
 	}
 
-	public function banChatUser( string $userText, string $bannedBy, string $reason = '' ): void {
-		$db = $this->lb->getConnection( DB_PRIMARY );
-		$db->upsert(
-			'collab_patrol_chat_ban',
-			[
-				'cpcb_user_text' => $userText,
-				'cpcb_banned_by' => $bannedBy,
-				'cpcb_reason' => $reason,
-				'cpcb_timestamp' => ConvertibleTimestamp::now( TS_MW ),
-			],
-			[ [ 'cpcb_user_text' ] ],
-			[
-				'cpcb_banned_by' => $bannedBy,
-				'cpcb_reason' => $reason,
-				'cpcb_timestamp' => ConvertibleTimestamp::now( TS_MW ),
-			],
-			__METHOD__
-		);
-	}
-
-	public function unbanChatUser( string $userText ): bool {
-		$db = $this->lb->getConnection( DB_PRIMARY );
-		$db->delete(
-			'collab_patrol_chat_ban',
-			[ 'cpcb_user_text' => $userText ],
-			__METHOD__
-		);
-		return $db->affectedRows() > 0;
-	}
-
-	public function isUserChatBanned( string $userText ): bool {
-		$db = $this->lb->getConnection( DB_REPLICA );
-		$row = $db->selectRow(
-			'collab_patrol_chat_ban',
-			[ 'cpcb_id' ],
-			[ 'cpcb_user_text' => $userText ],
-			__METHOD__
-		);
-		return (bool)$row;
-	}
-
-	public function getChatBan( string $userText ): ?array {
-		$db = $this->lb->getConnection( DB_REPLICA );
-		$row = $db->selectRow(
-			'collab_patrol_chat_ban',
-			'*',
-			[ 'cpcb_user_text' => $userText ],
-			__METHOD__
-		);
-		if ( !$row ) {
-			return null;
-		}
-		return [
-			'userText' => $row->cpcb_user_text,
-			'bannedBy' => $row->cpcb_banned_by,
-			'reason' => $row->cpcb_reason,
-			'timestamp' => wfTimestamp( TS_UNIX, $row->cpcb_timestamp ),
-		];
-	}
-
-	public function getChatBansForUsers( array $userTexts ): array {
-		if ( !$userTexts ) {
-			return [];
-		}
-		$db = $this->lb->getConnection( DB_REPLICA );
-		$res = $db->select(
-			'collab_patrol_chat_ban',
-			'*',
-			[ 'cpcb_user_text' => array_values( array_unique( $userTexts ) ) ],
-			__METHOD__
-		);
-		$bans = [];
-		foreach ( $res as $row ) {
-			$bans[$row->cpcb_user_text] = [
-				'userText' => $row->cpcb_user_text,
-				'bannedBy' => $row->cpcb_banned_by,
-				'reason' => $row->cpcb_reason,
-				'timestamp' => wfTimestamp( TS_UNIX, $row->cpcb_timestamp ),
-			];
-		}
-		return $bans;
-	}
-
 	private function rowToArray( object $row ): array {
 		return [
 			'revId' => (int)$row->cp_rev_id,
@@ -372,8 +452,8 @@ class CollabPatrolStore {
 			'userId' => (int)$row->cp_user_id,
 			'userText' => $row->cp_user_text,
 			'comment' => $row->cp_comment,
-			'timestamp' => wfTimestamp( TS_UNIX, $row->cp_timestamp ),
-			'expires' => wfTimestamp( TS_UNIX, $row->cp_expires ),
+			'timestamp' => (int)wfTimestamp( TS_UNIX, $row->cp_timestamp ),
+			'expires' => (int)wfTimestamp( TS_UNIX, $row->cp_expires ),
 		];
 	}
 
@@ -384,7 +464,7 @@ class CollabPatrolStore {
 			'userId' => (int)$row->cpc_user_id,
 			'userText' => $row->cpc_user_text,
 			'message' => $row->cpc_message,
-			'timestamp' => wfTimestamp( TS_UNIX, $row->cpc_timestamp ),
+			'timestamp' => (int)wfTimestamp( TS_UNIX, $row->cpc_timestamp ),
 			'deleted' => (bool)$row->cpc_deleted,
 			'deletedBy' => $row->cpc_deleted_by,
 		];

@@ -4,22 +4,45 @@ namespace MediaWiki\Extension\CollabPatrol\Hooks;
 
 use ChangesList;
 use MediaWiki\Extension\CollabPatrol\CollabPatrolStore;
+use MediaWiki\Html\Html;
 use RecentChange;
-use Wikimedia\Rdbms\ILoadBalancer;
 
 class RCHooks {
 
-	private static ?CollabPatrolStore $store = null;
+	/** @var array<int,array|false> Entries by revision ID (false = no entry) */
+	private static array $entries = [];
 
-	private static function getStore(): CollabPatrolStore {
-		if ( self::$store === null ) {
-			$services = \MediaWiki\MediaWikiServices::getInstance();
-			self::$store = new CollabPatrolStore(
-				$services->getDBLoadBalancer(),
-				$services->getMainConfig()
-			);
+	/** @var bool Whether ChangesListInitRows has run (batch preload available) */
+	private static bool $preloaded = false;
+
+	/**
+	 * Performance: one single query for every row of the list instead of one
+	 * query per line.
+	 *
+	 * @param ChangesList $changesList
+	 * @param iterable $rows
+	 */
+	public static function onChangesListInitRows( ChangesList $changesList, $rows ): void {
+		if ( !$changesList->getUser()->isAllowed( 'collabpatrol-use' ) ) {
+			return;
 		}
-		return self::$store;
+
+		$revIds = [];
+		foreach ( $rows as $row ) {
+			$id = (int)( $row->rc_this_oldid ?? 0 );
+			if ( $id > 0 ) {
+				$revIds[$id] = true;
+			}
+		}
+		if ( !$revIds ) {
+			return;
+		}
+
+		$found = CollabPatrolStore::newFromServices()->getEntriesForRevisions( array_keys( $revIds ) );
+		foreach ( $revIds as $id => $_ ) {
+			self::$entries[$id] = $found[$id] ?? false;
+		}
+		self::$preloaded = true;
 	}
 
 	public static function onChangesListInsertArticleLink(
@@ -30,38 +53,42 @@ class RCHooks {
 		bool $unpatrolled,
 		bool $watched
 	): void {
-		$revId = $rc->getAttribute( 'rc_this_oldid' );
-		if ( !$revId ) {
+		$revId = (int)$rc->getAttribute( 'rc_this_oldid' );
+		if ( !$revId || !$changesList->getUser()->isAllowed( 'collabpatrol-use' ) ) {
 			return;
 		}
 
-		$user = $changesList->getUser();
-		if ( !$user->isAllowed( 'collabpatrol-use' ) ) {
+		if ( array_key_exists( $revId, self::$entries ) ) {
+			$entry = self::$entries[$revId];
+		} elseif ( self::$preloaded ) {
 			return;
+		} else {
+			// Fallback when the batch preload hook is not available.
+			$entry = CollabPatrolStore::newFromServices()->getEntry( $revId ) ?? false;
 		}
-
-		$entry = self::getStore()->getEntry( (int)$revId );
 		if ( !$entry ) {
 			return;
 		}
 
-		$status = $entry['status'];
-		$dot = '';
-
-		if ( $status === 'pending' ) {
-			$dot = \Html::element( 'span', [
-				'class' => 'collabpatrol-rc-dot collabpatrol-rc-dot-pending',
-				'title' => wfMessage( 'collabpatrol-status-pending' )->text() . ( $entry['comment'] ? ': ' . $entry['comment'] : '' ),
-			], '●' );
-		} elseif ( $status === 'in_progress' ) {
-			$dot = \Html::element( 'span', [
-				'class' => 'collabpatrol-rc-dot collabpatrol-rc-dot-progress',
-				'title' => wfMessage( 'collabpatrol-status-in-progress' )->text(),
-			], '●' );
+		if ( $entry['status'] === 'pending' ) {
+			$class = 'pending';
+			$label = wfMessage( 'collabpatrol-status-pending' )->text();
+		} elseif ( $entry['status'] === 'in_progress' ) {
+			$class = 'progress';
+			$label = wfMessage( 'collabpatrol-status-in-progress' )->text();
+		} else {
+			return;
+		}
+		if ( $entry['comment'] !== '' ) {
+			$label .= ' : ' . $entry['comment'];
 		}
 
-		if ( $dot ) {
-			$articlelink = $dot . ' ' . $articlelink;
-		}
+		$dot = Html::element( 'span', [
+			'class' => "collabpatrol-rc-dot collabpatrol-rc-dot-$class",
+			'title' => $label,
+			'role' => 'img',
+			'aria-label' => $label,
+		] );
+		$articlelink = $dot . ' ' . $articlelink;
 	}
 }
