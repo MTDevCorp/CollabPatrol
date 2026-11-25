@@ -1,3 +1,141 @@
+/* CollabPatrol — tableau de bord et statistiques. */
+
 #collabpatrol-dashboard {
-	padding: 4px 0;
+	padding: 2px 0;
+}
+
+.collabpatrol-dash-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.collabpatrol-dash-filter {
+	min-width: 160px;
+	padding: 5px 8px;
+	border: 1px solid var( --border-color-base, #a2a9b1 );
+	border-radius: 2px;
+	background: var( --background-color-base, #fff );
+	color: var( --color-base, #202122 );
+	font: inherit;
+	font-size: 0.9375em;
+}
+
+.collabpatrol-dash-tablewrap {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+}
+
+.collabpatrol-dash-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9375em;
+}
+
+.collabpatrol-dash-table th,
+.collabpatrol-dash-table td {
+	padding: 7px 10px;
+	vertical-align: middle;
+}
+
+.collabpatrol-dash-table th {
+	background: var( --background-color-neutral, #eaecf0 );
+	color: var( --color-subtle, #54595d );
+	font-size: 0.875em;
+	letter-spacing: 0.03em;
+	text-align: left;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.collabpatrol-dash-table tbody tr:hover {
+	background-color: #eaf3ff;
+}
+
+.collabpatrol-dash-table td:nth-child( 2 ) .cp-status {
+	flex: 0 1 auto;
+}
+
+.collabpatrol-dash-table td:nth-child( 4 ) {
+	overflow-wrap: break-word;
+	font-weight: 600;
+}
+
+/* Dernière colonne : largeur des boutons, sur une seule ligne */
+.collabpatrol-dash-table th:last-child,
+.collabpatrol-dash-actions {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.collabpatrol-dash-actions-inner {
+	display: inline-flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.collabpatrol-dash-row-urgent {
+	background-color: #fee7e6;
+	box-shadow: inset 3px 0 0 #d33;
+}
+
+.collabpatrol-dash-table tbody tr.collabpatrol-dash-row-urgent:hover {
+	background-color: #fddcda;
+}
+
+.collabpatrol-dash-age-urgent {
+	color: #a1261b;
+	font-weight: 700;
+}
+
+.collabpatrol-dash-empty {
+	padding: 18px;
+	border: 1px dashed var( --border-color-base, #c8ccd1 );
+	border-radius: 2px;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	color: var( --color-subtle, #72777d );
+	text-align: center;
+}
+
+/* Minerva : vrai tableau dans un conteneur qui défile horizontalement */
+.skin-minerva #collabpatrol-dashboard {
+	max-width: 100%;
+	min-width: 0;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-tablewrap {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table {
+	display: table;
+	width: max-content;
+	min-width: 100%;
+	margin: 0;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table td:nth-child( 4 ) {
+	min-width: 12em;
+	max-width: 20em;
+	white-space: normal;
+}
+
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table th,
+.skin-minerva #collabpatrol-dashboard .collabpatrol-dash-table td:not( :nth-child( 4 ) ) {
+	white-space: nowrap;
+}
+
+/* ---- Statistiques ---- */
+.collabpatrol-stats-link {
+	font-size: 0.875em;
+	text-align: right;
+}
+
+.collabpatrol-stats {
+	max-width: 640px;
 }

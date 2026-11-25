@@ -26,22 +26,22 @@ class PreferencesHooks {
 			'section' => 'rendering/collabpatrol',
 		];
 
-		$preferences['collabpatrol-chat-open-default'] = [
-			'type' => 'toggle',
-			'label-message' => 'collabpatrol-pref-chat-open-default',
-			'section' => 'rendering/collabpatrol',
-		];
-
 		$preferences['collabpatrol-show-history'] = [
 			'type' => 'toggle',
 			'label-message' => 'collabpatrol-pref-show-history',
 			'section' => 'rendering/collabpatrol',
 		];
 
-		$preferences['collabpatrol-compact-mode'] = [
-			'type' => 'toggle',
-			'label-message' => 'collabpatrol-pref-compact-mode',
+		$preferences['collabpatrol-minerva-button-mode'] = [
+			'type' => 'select',
+			'label-message' => 'collabpatrol-pref-minerva-button-mode',
 			'section' => 'rendering/collabpatrol',
+			'options' => [
+				wfMessage( 'collabpatrol-pref-minerva-button-mode-normal' )->text() => 'normal',
+				wfMessage( 'collabpatrol-pref-minerva-button-mode-compact' )->text() => 'compact',
+				wfMessage( 'collabpatrol-pref-minerva-button-mode-full' )->text() => 'full',
+			],
 		];
+
 	}
 }

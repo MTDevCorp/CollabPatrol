@@ -1,180 +1,396 @@
-.collabpatrol-wrapper {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin: 10px 0;
-	padding: 6px 8px;
-	flex-wrap: wrap;
-	clear: both;
-	background: #f8f9fa;
-	border-radius: 6px;
-	border: 1px solid #e9ecef;
+/* CollabPatrol — composants partagés (diff, tableau de bord).
+ * Interface volontairement compacte ; les couleurs suivent les variables de
+ * thème MediaWiki quand elles existent (thème sombre inclus). */
+
+/* ---- Palette (une couleur par état/action) ---- */
+.collabpatrol-wrapper,
+.cp-status,
+.cp-history-item {
+	--cp-pending: #d69200;
+	--cp-progress: #36c;
+	--cp-finished: #14866d;
+	--cp-urgent: #d33;
+	--cp-removed: #72777d;
 }
 
-.collabpatrol-wrapper-compact {
-	padding: 4px 6px;
-	gap: 6px;
-}
-
-.collabpatrol-badge {
-	padding: 4px 10px;
-	border-radius: 20px;
-	font-weight: bold;
-	font-size: 13px;
+/* ---- Icônes OOUI (classes CSS ; l'image vient du module d'icônes) ---- */
+.cp-ico {
 	display: inline-block;
-}
-
-.collabpatrol-badge-pending {
-	background-color: #fff3cd;
-	color: #856404;
-	border: 1px solid #ffeeba;
-}
-
-.collabpatrol-badge-progress {
-	background-color: #d1ecf1;
-	color: #0c5460;
-	border: 1px solid #bee5eb;
-}
-
-.collabpatrol-badge-finished {
-	background-color: #d4edda;
-	color: #155724;
-	border: 1px solid #c3e6cb;
-}
-
-.collabpatrol-badge-urgent {
-	background-color: #f8d7da;
-	color: #721c24;
-	border: 1px solid #f5c6cb;
-	animation: collabpatrol-pulse 2s infinite;
-}
-
-@keyframes collabpatrol-pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.65; }
-}
-
-.collabpatrol-btn {
-	border: none;
-	padding: 5px 12px;
-	border-radius: 4px;
-	color: #fff;
-	cursor: pointer;
-	font-size: 13px;
-	font-weight: bold;
-	transition: opacity 0.15s;
-	text-decoration: none;
-	display: inline-block;
-}
-
-.collabpatrol-btn:hover {
-	opacity: 0.85;
-}
-
-.collabpatrol-btn-green { background-color: #28a745; }
-.collabpatrol-btn-grey { background-color: #6c757d; }
-.collabpatrol-btn-red { background-color: #dc3545; }
-
-.collabpatrol-btn-yellow {
-	background-color: #ffc107;
-	color: #212529;
-}
-
-.collabpatrol-history {
-	margin-top: 6px;
-	padding: 8px 10px;
-	background: #f1f3f4;
-	border-radius: 4px;
-	font-size: 12px;
-	color: #555;
-	width: 100%;
-}
-
-.collabpatrol-wrapper-compact .collabpatrol-history {
-	margin-top: 4px;
-	padding: 6px 8px;
-	font-size: 11px;
-}
-
-.collabpatrol-history-item {
-	margin: 2px 0;
-}
-
-.collabpatrol-rc-dot {
-	font-size: 1.1em;
-	margin-right: 3px;
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: contain;
 	vertical-align: middle;
 }
 
-.collabpatrol-rc-dot-pending { color: #ff9800; }
-.collabpatrol-rc-dot-progress { color: #36c; }
-
-.collabpatrol-rc-counter {
+/* ---- Boutons compacts ---- */
+.cp-btn {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	padding: 6px 14px;
-	margin-top: 6px;
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 5px;
-	font-size: 13px;
-	font-weight: bold;
+	gap: 5px;
+	box-sizing: border-box;
+	height: 30px;
+	margin: 0;
+	padding: 0 10px;
+	border: 1px solid var( --border-color-base, #a2a9b1 );
+	border-radius: 2px;
+	background: var( --background-color-interactive-subtle, #f8f9fa );
+	color: var( --color-base, #202122 );
+	font: inherit;
+	font-size: 0.875em;
+	font-weight: 600;
+	line-height: 1;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background-color 0.1s, border-color 0.1s;
 }
 
-.collabpatrol-rc-counter-pending { color: #856404; }
-.collabpatrol-rc-counter-progress { color: #0c5460; }
-
-.collabpatrol-rc-dash-link {
-	margin-left: 8px;
-	font-weight: normal;
-	font-size: 12px;
+.cp-btn:hover {
+	background: var( --background-color-interactive, #eaecf0 );
 }
 
-.collabpatrol-dash-toolbar {
+.cp-btn:focus-visible {
+	outline: 2px solid #36c;
+	outline-offset: 1px;
+}
+
+.cp-btn:disabled,
+.cp-btn-busy {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.cp-btn-iconly {
+	width: 30px;
+	padding: 0;
+	justify-content: center;
+}
+
+/* Couleur par action : bleu = prendre, vert = terminer, ambre = signaler, rouge = annuler */
+.cp-btn-take,
+.cp-btn-finish {
+	color: #fff;
+}
+
+.cp-btn-take .cp-ico,
+.cp-btn-finish .cp-ico {
+	filter: invert( 1 );
+}
+
+.cp-btn-take { background: #36c; border-color: #36c; }
+.cp-btn-take:hover { background: #447ff5; border-color: #447ff5; }
+.cp-btn-finish { background: #14866d; border-color: #14866d; }
+.cp-btn-finish:hover { background: #1aa386; border-color: #1aa386; }
+.cp-btn-flag { background: #fef6e7; border-color: #fc3; color: #7a5d00; }
+.cp-btn-flag:hover { background: #fdecc2; }
+.cp-btn-cancel { background: #fee7e6; border-color: #f4a7a1; color: #a1261b; }
+.cp-btn-cancel:hover { background: #fddcda; }
+
+/* Compteur de messages sur le bouton de discussion */
+.cp-badge-count {
+	min-width: 16px;
+	padding: 0 4px;
+	border-radius: 8px;
+	background: #36c;
+	color: #fff;
+	font-size: 0.75em;
+	line-height: 16px;
+	text-align: center;
+}
+
+.cp-btn-iconly .cp-badge-count {
+	position: absolute;
+	top: -6px;
+	right: -6px;
+	box-shadow: 0 0 0 2px var( --background-color-neutral-subtle, #f8f9fa );
+}
+
+/* ---- Bandeau de la révision ---- */
+.collabpatrol-wrapper {
+	--cp-accent: var( --cp-removed );
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 10px;
-	margin-bottom: 14px;
+	gap: 4px 8px;
+	clear: both;
+	box-sizing: border-box;
+	margin: 6px 0;
+	padding: 5px 10px;
+	border: 1px solid var( --border-color-subtle, #c8ccd1 );
+	border-left: 3px solid var( --cp-accent );
+	border-radius: 2px;
+	background: var( --background-color-neutral-subtle, #f8f9fa );
+	color: var( --color-base, #202122 );
+	font-size: 0.9375em;
 }
 
-.collabpatrol-dash-table td,
-.collabpatrol-dash-table th {
-	padding: 8px 10px;
-	vertical-align: middle;
+.cp-w-none { --cp-accent: var( --cp-pending ); padding: 3px 8px; }
+.cp-w-pending { --cp-accent: var( --cp-pending ); }
+.cp-w-progress { --cp-accent: var( --cp-progress ); }
+.cp-w-finished { --cp-accent: var( --cp-finished ); }
+.cp-w-urgent {
+	--cp-accent: var( --cp-urgent );
+	background: var( --background-color-error-subtle, #fee7e6 );
 }
 
-.collabpatrol-dash-actions {
+.cp-actions {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+
+/* ---- Pastille de statut : icône colorée + texte ---- */
+.cp-status {
+	display: inline-flex;
+	flex: 1 1 auto;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	--cp-accent: var( --cp-removed );
+}
+
+.cp-status-pending { --cp-accent: var( --cp-pending ); }
+.cp-status-progress { --cp-accent: var( --cp-progress ); }
+.cp-status-finished { --cp-accent: var( --cp-finished ); }
+.cp-status-urgent { --cp-accent: var( --cp-urgent ); }
+.cp-status-removed { --cp-accent: var( --cp-removed ); }
+
+.cp-status-ico {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var( --cp-accent );
+}
+
+.cp-status-ico .cp-ico {
+	width: 15px;
+	height: 15px;
+	filter: invert( 1 );
+}
+
+.cp-status-urgent .cp-status-ico {
+	animation: cp-pulse 2s infinite;
+}
+
+@keyframes cp-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.6; }
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.cp-status-urgent .cp-status-ico { animation: none; }
+}
+
+.cp-status-text {
+	min-width: 0;
+	font-size: 0.875em;
+	line-height: 1.3;
+}
+
+.cp-status-time,
+.cp-status-comment {
+	color: var( --color-subtle, #54595d );
+}
+
+/* ---- Motif du signalement : mis en avant, sur sa propre ligne ---- */
+.cp-comment {
+	flex: 1 1 100%;
+	box-sizing: border-box;
+	padding: 4px 8px;
+	border-radius: 2px;
+	background: rgba( 0, 0, 0, 0.05 );
+	background: color-mix( in srgb, var( --cp-accent, #72777d ) 14%, transparent );
+	color: var( --color-emphasized, #101418 );
+	font-size: 1em;
+	font-weight: 600;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+/* ---- Historique : replié et discret ; trait et titre colorés selon l'action ---- */
+.cp-history-wrap {
+	flex: 1 1 100%;
+	color: var( --color-subtle, #54595d );
+	font-size: 0.8125em;
+}
+
+.cp-history-wrap > summary {
+	display: inline-block;
+	cursor: pointer;
+	opacity: 0.8;
+}
+
+.cp-history-wrap[open] > summary {
+	opacity: 1;
+}
+
+.cp-history {
+	flex: 1 1 100%;
+	box-sizing: border-box;
+	max-height: 7.5em;
+	margin-top: 1px;
+	padding-top: 3px;
+	overflow-y: auto;
+	border-top: 1px solid var( --border-color-subtle, #eaecf0 );
+	color: var( --color-subtle, #54595d );
+	font-size: 1em;
+}
+
+.cp-history-item {
+	--cp-h: var( --cp-removed );
+	margin: 2px 0;
+	padding-left: 8px;
+	border-left: 3px solid var( --cp-h );
+}
+
+.cp-history-pending { --cp-h: var( --cp-pending ); }
+.cp-history-progress { --cp-h: var( --cp-progress ); }
+.cp-history-finished { --cp-h: var( --cp-finished ); }
+.cp-history-urgent { --cp-h: var( --cp-urgent ); }
+.cp-history-removed { --cp-h: var( --cp-removed ); }
+
+.cp-history-title {
+	color: var( --cp-h );
+	font-weight: 700;
+}
+
+.cp-history-comment {
+	font-style: italic;
+}
+
+
+/* ---- Minerva : icônes seules, cibles tactiles de 38 px ---- */
+.skin-minerva .collabpatrol-wrapper {
+	max-width: 100%;
+	margin: 8px 0;
+	padding: 6px 10px;
+	font-size: 1em;
+}
+
+.cp-mobile .cp-btn,
+.skin-minerva .cp-btn {
+	height: 38px;
+	padding: 0 12px;
+	font-size: 0.9375em;
+}
+
+.cp-mobile .cp-btn-iconly,
+.skin-minerva .cp-btn-iconly {
+	width: 38px;
+	padding: 0;
+}
+
+.skin-minerva .cp-btn .cp-ico {
+	width: 20px;
+	height: 20px;
+}
+
+.cp-mobile .cp-actions {
+	flex-wrap: wrap;
+	max-width: 100%;
+}
+
+/* Boutons avec texte qui ne tiennent plus à côté du titre : ligne dédiée, centrée */
+.cp-mobile.cp-actions-wrapped .cp-actions {
+	flex: 1 1 100%;
+	justify-content: center;
+	margin: 0 auto;
+}
+
+.cp-mobile .cp-status-ico {
+	width: 28px;
+	height: 28px;
+}
+
+.cp-mobile .cp-status-ico .cp-ico {
+	width: 17px;
+	height: 17px;
+}
+
+.cp-mobile .cp-status {
+	cursor: pointer;
+}
+
+.cp-mobile .cp-status-text {
+	overflow: hidden;
+	font-size: 0.9375em;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.collabpatrol-dash-row-urgent {
-	background-color: #fff5f5;
+/* ---- Fenêtres chargées à la demande ---- */
+.cp-details {
+	padding-right: 36px;
 }
 
-.collabpatrol-stats {
-	max-width: 600px;
+.cp-details .cp-status {
+	margin-bottom: 8px;
 }
 
-.collabpatrol-stats-link {
-	text-align: right;
-	font-size: 13px;
+.cp-details .cp-status-text {
+	white-space: normal;
 }
 
-@media screen and (max-width: 720px) {
-	.collabpatrol-wrapper {
-		justify-content: center;
-	}
+.cp-details .cp-comment {
+	margin-bottom: 8px;
+}
 
-	.collabpatrol-btn {
-		flex-grow: 1;
-		text-align: center;
-	}
+.cp-details .cp-history-wrap {
+	font-size: 0.875em;
+}
 
-	.collabpatrol-rc-counter {
-		display: flex;
-		flex-wrap: wrap;
-		margin: 8px auto;
-		justify-content: center;
-	}
+.cp-details .cp-history {
+	max-height: none;
+}
+
+.cp-prompt > * {
+	display: block;
+	max-width: none;
+	margin-bottom: 8px;
+}
+
+/* Croix de fermeture, toujours visible (indépendante du thème OOUI) */
+.cp-dlg-close {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	z-index: 10;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 0;
+	border-radius: 2px;
+	background: transparent;
+	cursor: pointer;
+}
+
+.cp-dlg-close:hover,
+.cp-dlg-close:focus-visible {
+	background: var( --background-color-interactive, #eaecf0 );
+}
+
+.cp-dlg-close .cp-ico {
+	width: 20px;
+	height: 20px;
+}
+
+.cp-has-close .oo-ui-messageDialog-title {
+	padding-right: 44px;
+}
+
+.cp-has-close .oo-ui-messageDialog-actions .oo-ui-buttonElement-button {
+	min-height: 40px;
+	font-size: 1em;
 }
