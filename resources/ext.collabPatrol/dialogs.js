@@ -180,6 +180,29 @@
 			dlg.send();
 		} );
 		CP.mentions.attachAutocomplete( this.input.$input );
+
+		// Mobile : à la fermeture du clavier (sans envoi), le navigateur peut laisser la
+		// fenêtre décalée / redimensionnée et la zone de saisie sort de l'écran. On
+		// resynchronise donc la mise en page.
+		this.onViewportChange = function () {
+			dlg.syncViewport();
+		};
+		this.input.$input.on( 'blur focus', function () {
+			setTimeout( dlg.onViewportChange, 50 );
+			setTimeout( dlg.onViewportChange, 350 );
+		} );
+	};
+
+	/** Recale la fenêtre sur la zone réellement visible (clavier ouvert ou fermé). */
+	ChatDialog.prototype.syncViewport = function () {
+		var vv = window.visualViewport;
+		var h = vv ? Math.round( vv.height ) : window.innerHeight;
+		this.$element.css( '--cp-vvh', h + 'px' );
+		if ( vv && vv.offsetTop === 0 && window.pageYOffset !== 0 && !this.input.$input.is( ':focus' ) ) {
+			window.scrollTo( 0, 0 );
+		}
+		this.updateSize();
+		this.input.adjustSize( true );
 	};
 
 	ChatDialog.prototype.getSetupProcess = function ( data ) {
@@ -204,6 +227,11 @@
 		return ChatDialog.super.prototype.getReadyProcess.call( this, data ).next( function () {
 			var interval = CP.config.refreshInterval ? Math.min( CP.config.refreshInterval, 15000 ) : 0;
 			this.stopPoll = CP.poll( this.load.bind( this ), interval );
+			if ( window.visualViewport ) {
+				window.visualViewport.addEventListener( 'resize', this.onViewportChange );
+			}
+			$( window ).on( 'orientationchange', this.onViewportChange );
+			this.syncViewport();
 			this.input.focus();
 		}, this );
 	};
@@ -214,6 +242,10 @@
 				this.stopPoll();
 				this.stopPoll = null;
 			}
+			if ( window.visualViewport ) {
+				window.visualViewport.removeEventListener( 'resize', this.onViewportChange );
+			}
+			$( window ).off( 'orientationchange', this.onViewportChange );
 		}, this );
 	};
 
