@@ -190,22 +190,37 @@
 		this.input.$input.on( 'blur focus', function () {
 			setTimeout( dlg.onViewportChange, 50 );
 			setTimeout( dlg.onViewportChange, 350 );
+			setTimeout( dlg.onViewportChange, 800 );
 		} );
 	};
 
-	/** Recale la fenêtre sur la zone réellement visible (clavier ouvert ou fermé). */
+	/**
+	 * Clavier ouvert : la fenêtre est calée sur la zone réellement visible (visualViewport),
+	 * sinon la zone de saisie passe derrière le clavier. Clavier fermé : on retire tout
+	 * calage, c'est le CSS natif (fenêtre fixe plein écran) qui reprend la main, ce qui
+	 * évite les hauteurs périmées quand la barre d'adresse du navigateur apparaît/disparaît.
+	 */
 	ChatDialog.prototype.syncViewport = function () {
 		var vv = window.visualViewport;
-		var h = vv ? Math.round( vv.height ) : window.innerHeight;
-		this.$element.css( {
-			'--cp-vvh': h + 'px',
-			'--cp-vvtop': ( vv ? Math.round( vv.offsetTop ) : 0 ) + 'px'
-		} );
-		if ( vv && vv.offsetTop === 0 && window.pageYOffset !== 0 && !this.input.$input.is( ':focus' ) ) {
-			window.scrollTo( 0, 0 );
+		var keyboardOpen = !!vv && ( window.innerHeight - vv.height ) > 120 &&
+			this.input.$input.is( ':focus' );
+		if ( keyboardOpen ) {
+			this.$element.addClass( 'cp-kb-open' ).css( {
+				'--cp-vvh': Math.round( vv.height ) + 'px',
+				'--cp-vvtop': Math.round( vv.offsetTop ) + 'px'
+			} );
+		} else {
+			this.$element.removeClass( 'cp-kb-open' ).css( {
+				'--cp-vvh': '',
+				'--cp-vvtop': ''
+			} );
+			if ( window.pageYOffset !== 0 ) {
+				window.scrollTo( 0, 0 );
+			}
 		}
 		this.updateSize();
 		this.input.adjustSize( true );
+		this.$messages.scrollTop( this.$messages[ 0 ].scrollHeight );
 	};
 
 	ChatDialog.prototype.getSetupProcess = function ( data ) {
@@ -232,6 +247,7 @@
 			this.stopPoll = CP.poll( this.load.bind( this ), interval );
 			if ( window.visualViewport ) {
 				window.visualViewport.addEventListener( 'resize', this.onViewportChange );
+				window.visualViewport.addEventListener( 'scroll', this.onViewportChange );
 			}
 			$( window ).on( 'orientationchange', this.onViewportChange );
 			this.syncViewport();
@@ -247,6 +263,7 @@
 			}
 			if ( window.visualViewport ) {
 				window.visualViewport.removeEventListener( 'resize', this.onViewportChange );
+				window.visualViewport.removeEventListener( 'scroll', this.onViewportChange );
 			}
 			$( window ).off( 'orientationchange', this.onViewportChange );
 		}, this );

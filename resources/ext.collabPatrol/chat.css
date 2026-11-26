@@ -198,19 +198,19 @@
 	font-size: 0.875em;
 }
 
-/* Mobile (plein écran) : la fenêtre est calée en haut de la zone réellement visible
-   (hauteur = visualViewport), clavier ouvert ou fermé. Sans ce calage OOUI recentre
-   verticalement la fenêtre, qui « descend » derrière le clavier. */
-.oo-ui-windowManager-size-full .cp-chat-dialog {
+/* Mobile (plein écran), clavier ouvert uniquement : la fenêtre est calée en haut de la
+   zone réellement visible (hauteur = visualViewport). Clavier fermé, aucune règle
+   ne s'applique : OOUI garde sa fenêtre fixe plein écran d'origine. */
+.oo-ui-windowManager-size-full .cp-chat-dialog.cp-kb-open {
 	align-items: flex-start;
 }
 
-.oo-ui-windowManager-size-full .cp-chat-dialog.oo-ui-window-active {
+.oo-ui-windowManager-size-full .cp-chat-dialog.cp-kb-open.oo-ui-window-active {
 	top: var( --cp-vvtop, 0 );
 	bottom: auto;
-	height: var( --cp-vvh, 100dvh );
+	height: var( --cp-vvh, 100% );
 }
 
-.oo-ui-windowManager-size-full .cp-chat-dialog .oo-ui-window-frame {
+.oo-ui-windowManager-size-full .cp-chat-dialog.cp-kb-open .oo-ui-window-frame {
 	height: 100% !important;
 }
