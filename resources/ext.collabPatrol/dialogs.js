@@ -120,7 +120,7 @@
 	 * ------------------------------------------------------------------- */
 
 	function ChatDialog( config ) {
-		ChatDialog.super.call( this, config );
+		ChatDialog.super.call( this, $.extend( { classes: [ 'cp-chat-dialog' ] }, config ) );
 	}
 	OO.inheritClass( ChatDialog, OO.ui.ProcessDialog );
 
@@ -197,7 +197,10 @@
 	ChatDialog.prototype.syncViewport = function () {
 		var vv = window.visualViewport;
 		var h = vv ? Math.round( vv.height ) : window.innerHeight;
-		this.$element.css( '--cp-vvh', h + 'px' );
+		this.$element.css( {
+			'--cp-vvh': h + 'px',
+			'--cp-vvtop': ( vv ? Math.round( vv.offsetTop ) : 0 ) + 'px'
+		} );
 		if ( vv && vv.offsetTop === 0 && window.pageYOffset !== 0 && !this.input.$input.is( ':focus' ) ) {
 			window.scrollTo( 0, 0 );
 		}
