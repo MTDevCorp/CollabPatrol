@@ -195,32 +195,47 @@
 	};
 
 	/**
-	 * Clavier ouvert : la fenêtre est calée sur la zone réellement visible (visualViewport),
-	 * sinon la zone de saisie passe derrière le clavier. Clavier fermé : on retire tout
-	 * calage, c'est le CSS natif (fenêtre fixe plein écran) qui reprend la main, ce qui
-	 * évite les hauteurs périmées quand la barre d'adresse du navigateur apparaît/disparaît.
+	 * Mobile (plein écran) : cale la fenêtre sur la zone réellement visible. Firefox mobile
+	 * (barre d'adresse dynamique, clavier) fausse chacune des mesures prise isolément ;
+	 * on retient donc la plus petite hauteur plausible, complétée côté CSS par 100svh.
+	 * Ajouter ?cpdebug=1 à l'URL affiche les mesures dans la fenêtre.
 	 */
 	ChatDialog.prototype.syncViewport = function () {
 		var vv = window.visualViewport;
+		var heights = [ window.innerHeight, document.documentElement.clientHeight ];
+		if ( vv ) {
+			heights.push( vv.height );
+		}
+		var h = Math.round( Math.min.apply( null, heights.filter( function ( n ) {
+			return n > 100;
+		} ) ) );
 		var keyboardOpen = !!vv && ( window.innerHeight - vv.height ) > 120 &&
 			this.input.$input.is( ':focus' );
-		if ( keyboardOpen ) {
-			this.$element.addClass( 'cp-kb-open' ).css( {
-				'--cp-vvh': Math.round( vv.height ) + 'px',
-				'--cp-vvtop': Math.round( vv.offsetTop ) + 'px'
+		var top = keyboardOpen ? Math.round( vv.offsetTop ) : 0;
+
+		if ( this.isFull() ) {
+			this.$element.addClass( 'cp-fit' ).css( {
+				'--cp-vvh': h + 'px',
+				'--cp-vvtop': top + 'px'
 			} );
-		} else {
-			this.$element.removeClass( 'cp-kb-open' ).css( {
-				'--cp-vvh': '',
-				'--cp-vvtop': ''
-			} );
-			if ( window.pageYOffset !== 0 ) {
+			if ( !keyboardOpen && window.pageYOffset !== 0 ) {
 				window.scrollTo( 0, 0 );
 			}
+		}
+		if ( /[?&]cpdebug=1/.test( location.search ) ) {
+			this.$error.text( 'inner=' + window.innerHeight + ' client=' +
+				document.documentElement.clientHeight + ' vv=' + ( vv ? Math.round( vv.height ) : '-' ) +
+				' vvTop=' + ( vv ? Math.round( vv.offsetTop ) : '-' ) + ' screen=' + screen.height +
+				' dpr=' + window.devicePixelRatio + ' => ' + h ).show();
 		}
 		this.updateSize();
 		this.input.adjustSize( true );
 		this.$messages.scrollTop( this.$messages[ 0 ].scrollHeight );
+	};
+
+	/** La fenêtre est-elle ouverte en plein écran (téléphone) ? */
+	ChatDialog.prototype.isFull = function () {
+		return !!this.manager && this.manager.$element.hasClass( 'oo-ui-windowManager-size-full' );
 	};
 
 	ChatDialog.prototype.getSetupProcess = function ( data ) {

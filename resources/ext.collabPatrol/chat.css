@@ -198,19 +198,24 @@
 	font-size: 0.875em;
 }
 
-/* Mobile (plein écran), clavier ouvert uniquement : la fenêtre est calée en haut de la
-   zone réellement visible (hauteur = visualViewport). Clavier fermé, aucune règle
-   ne s'applique : OOUI garde sa fenêtre fixe plein écran d'origine. */
-.oo-ui-windowManager-size-full .cp-chat-dialog.cp-kb-open {
+/* Mobile (plein écran) : la fenêtre est calée en haut et prend exactement la hauteur
+   visible mesurée en JS (--cp-vvh), plafonnée par 100svh quand le navigateur le gère. */
+.oo-ui-windowManager-size-full .cp-chat-dialog.cp-fit {
 	align-items: flex-start;
 }
 
-.oo-ui-windowManager-size-full .cp-chat-dialog.cp-kb-open.oo-ui-window-active {
+.oo-ui-windowManager-size-full .cp-chat-dialog.cp-fit.oo-ui-window-active {
 	top: var( --cp-vvtop, 0 );
 	bottom: auto;
 	height: var( --cp-vvh, 100% );
 }
 
-.oo-ui-windowManager-size-full .cp-chat-dialog.cp-kb-open .oo-ui-window-frame {
+@supports ( height: 100svh ) {
+	.oo-ui-windowManager-size-full .cp-chat-dialog.cp-fit.oo-ui-window-active {
+		height: min( var( --cp-vvh, 100svh ), 100svh );
+	}
+}
+
+.oo-ui-windowManager-size-full .cp-chat-dialog.cp-fit .oo-ui-window-frame {
 	height: 100% !important;
 }
