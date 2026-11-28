@@ -156,7 +156,7 @@
 			flags: [ 'primary', 'progressive' ]
 		} );
 
-		var $composer = $( '<div>' ).addClass( 'cp-chat-composer' ).append(
+		var $composer = this.$composer = $( '<div>' ).addClass( 'cp-chat-composer' ).append(
 			this.input.$element,
 			$( '<div>' ).addClass( 'cp-chat-composer-row' ).append( this.counter, this.sendBtn.$element )
 		);
@@ -222,15 +222,29 @@
 				window.scrollTo( 0, 0 );
 			}
 		}
+		this.updateSize();
+		this.input.adjustSize( true );
+		this.$messages.scrollTop( this.$messages[ 0 ].scrollHeight );
+
+		// Correction empirique : quelle que soit la cause (barre d'adresse, clavier, hauteur
+		// de l'en-tête…), si le bas de la zone de saisie dépasse de la zone visible, on
+		// remonte le tout exactement du dépassement mesuré.
+		var over = 0;
+		if ( this.isFull() ) {
+			var $layout = this.content.$element.css( 'padding-bottom', '' );
+			var visBottom = Math.min( window.innerHeight, vv ? vv.offsetTop + vv.height : Infinity );
+			over = Math.ceil( this.$composer[ 0 ].getBoundingClientRect().bottom - visBottom );
+			if ( over > 0 ) {
+				$layout.css( 'padding-bottom', over + 'px' );
+			}
+		}
+
 		if ( /[?&]cpdebug=1/.test( location.search ) ) {
 			this.$error.text( 'inner=' + window.innerHeight + ' client=' +
 				document.documentElement.clientHeight + ' vv=' + ( vv ? Math.round( vv.height ) : '-' ) +
 				' vvTop=' + ( vv ? Math.round( vv.offsetTop ) : '-' ) + ' screen=' + screen.height +
-				' dpr=' + window.devicePixelRatio + ' => ' + h ).show();
+				' dpr=' + window.devicePixelRatio + ' h=' + h + ' over=' + over ).show();
 		}
-		this.updateSize();
-		this.input.adjustSize( true );
-		this.$messages.scrollTop( this.$messages[ 0 ].scrollHeight );
 	};
 
 	/** La fenêtre est-elle ouverte en plein écran (téléphone) ? */
