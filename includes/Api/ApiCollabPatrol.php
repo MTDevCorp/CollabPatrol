@@ -357,20 +357,14 @@ class ApiCollabPatrol extends ApiBase {
 		}
 		return false;
 	}
-
 	private function patrolRevision( int $revId ): void {
-		$api = new \ApiMain(
-			new \FauxRequest( [
-				'action' => 'patrol',
-				'revid' => $revId,
-				'token' => $this->getUser()->getEditToken( 'patrol' ),
-				'format' => 'json',
-			], true ),
-			false
-		);
 		try {
-			$api->execute();
-		} catch ( \Exception $e ) {
+			$rc = \RecentChange::newFromConds( [ 'rc_this_oldid' => $revId ], __METHOD__ );
+			if ( $rc && !$rc->getAttribute( 'rc_patrolled' ) ) {
+				$rc->doMarkPatrolled( $this->getAuthority() );
+			}
+		} catch ( \Throwable $e ) {
+			wfDebugLog( 'CollabPatrol', 'Auto-patrol failed for revision ' . $revId . ': ' . $e->getMessage() );
 		}
 	}
 
