@@ -120,7 +120,7 @@
 	 * ------------------------------------------------------------------- */
 
 	function ChatDialog( config ) {
-		ChatDialog.super.call( this, config );
+		ChatDialog.super.call( this, $.extend( { classes: [ 'cp-chat-dialog' ] }, config ) );
 	}
 	OO.inheritClass( ChatDialog, OO.ui.ProcessDialog );
 
@@ -156,7 +156,7 @@
 			flags: [ 'primary', 'progressive' ]
 		} );
 
-		var $composer = $( '<div>' ).addClass( 'cp-chat-composer' ).append(
+		var $composer = this.$composer = $( '<div>' ).addClass( 'cp-chat-composer' ).append(
 			this.input.$element,
 			$( '<div>' ).addClass( 'cp-chat-composer-row' ).append( this.counter, this.sendBtn.$element )
 		);
@@ -180,6 +180,76 @@
 			dlg.send();
 		} );
 		CP.mentions.attachAutocomplete( this.input.$input );
+
+		// Mobile : à la fermeture du clavier (sans envoi), le navigateur peut laisser la
+		// fenêtre décalée / redimensionnée et la zone de saisie sort de l'écran. On
+		// resynchronise donc la mise en page.
+		this.onViewportChange = function () {
+			dlg.syncViewport();
+		};
+		this.input.$input.on( 'blur focus', function () {
+			setTimeout( dlg.onViewportChange, 50 );
+			setTimeout( dlg.onViewportChange, 350 );
+			setTimeout( dlg.onViewportChange, 800 );
+		} );
+	};
+
+	/**
+	 * Mobile (plein écran) : cale la fenêtre sur la zone réellement visible. Firefox mobile
+	 * (barre d'adresse dynamique, clavier) fausse chacune des mesures prise isolément ;
+	 * on retient donc la plus petite hauteur plausible, complétée côté CSS par 100svh.
+	 * Ajouter ?cpdebug=1 à l'URL affiche les mesures dans la fenêtre.
+	 */
+	ChatDialog.prototype.syncViewport = function () {
+		var vv = window.visualViewport;
+		var heights = [ window.innerHeight, document.documentElement.clientHeight ];
+		if ( vv ) {
+			heights.push( vv.height );
+		}
+		var h = Math.round( Math.min.apply( null, heights.filter( function ( n ) {
+			return n > 100;
+		} ) ) );
+		var keyboardOpen = !!vv && ( window.innerHeight - vv.height ) > 120 &&
+			this.input.$input.is( ':focus' );
+		var top = keyboardOpen ? Math.round( vv.offsetTop ) : 0;
+
+		if ( this.isFull() ) {
+			this.$element.addClass( 'cp-fit' ).css( {
+				'--cp-vvh': h + 'px',
+				'--cp-vvtop': top + 'px'
+			} );
+			if ( !keyboardOpen && window.pageYOffset !== 0 ) {
+				window.scrollTo( 0, 0 );
+			}
+		}
+		this.updateSize();
+		this.input.adjustSize( true );
+		this.$messages.scrollTop( this.$messages[ 0 ].scrollHeight );
+
+		// Correction empirique : quelle que soit la cause (barre d'adresse, clavier, hauteur
+		// de l'en-tête…), si le bas de la zone de saisie dépasse de la zone visible, on
+		// remonte le tout exactement du dépassement mesuré.
+		var over = 0;
+		if ( this.isFull() ) {
+			var $layout = this.content.$element.css( 'padding-bottom', '' );
+			var visBottom = Math.min( window.innerHeight, vv ? vv.offsetTop + vv.height : Infinity );
+			over = Math.ceil( this.$composer[ 0 ].getBoundingClientRect().bottom - visBottom );
+			if ( over > 0 ) {
+				$layout.css( 'padding-bottom', over + 'px' );
+			}
+		}
+
+		if ( /[?&]cpdebug=1/.test( location.search ) ) {
+			this.$error.text( 'inner=' + window.innerHeight + ' client=' +
+				document.documentElement.clientHeight + ' vv=' + ( vv ? Math.round( vv.height ) : '-' ) +
+				' vvTop=' + ( vv ? Math.round( vv.offsetTop ) : '-' ) + ' screen=' + screen.height +
+				' dpr=' + window.devicePixelRatio + ' h=' + h + ' over=' + over ).show();
+		}
+	};
+
+	/** La fenêtre est-elle ouverte en plein écran (téléphone) ? */
+	ChatDialog.prototype.isFull = function () {
+		return !!this.manager && this.manager.$element.hasClass( 'oo-ui-windowManager-size-full' );
 	};
 
 	ChatDialog.prototype.getSetupProcess = function ( data ) {
@@ -204,6 +274,12 @@
 		return ChatDialog.super.prototype.getReadyProcess.call( this, data ).next( function () {
 			var interval = CP.config.refreshInterval ? Math.min( CP.config.refreshInterval, 15000 ) : 0;
 			this.stopPoll = CP.poll( this.load.bind( this ), interval );
+			if ( window.visualViewport ) {
+				window.visualViewport.addEventListener( 'resize', this.onViewportChange );
+				window.visualViewport.addEventListener( 'scroll', this.onViewportChange );
+			}
+			$( window ).on( 'orientationchange', this.onViewportChange );
+			this.syncViewport();
 			this.input.focus();
 		}, this );
 	};
@@ -214,6 +290,11 @@
 				this.stopPoll();
 				this.stopPoll = null;
 			}
+			if ( window.visualViewport ) {
+				window.visualViewport.removeEventListener( 'resize', this.onViewportChange );
+				window.visualViewport.removeEventListener( 'scroll', this.onViewportChange );
+			}
+			$( window ).off( 'orientationchange', this.onViewportChange );
 		}, this );
 	};
 
